@@ -46,6 +46,7 @@ contract MyContract is ERC721, Ownable {
     // }
 
     // NFT contract starts
+    // https://www.youtube.com/watch?v=8WPzUbJyoNg
 
     uint256 public mintPrice = 0.05 ether;
     uint256 public totalSupply;
