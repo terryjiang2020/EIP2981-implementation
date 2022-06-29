@@ -55,8 +55,8 @@ contract MyContract is ERC721, Ownable {
     mapping(address => uint256) public mintedWallets;
 
     constructor() payable ERC721('Simple Mint', 'SIMPLEMINT') {
-        // 2 NFT for maximum
-        maxSupply = 2; 
+        // 375 NFT for maximum
+        maxSupply = 375; 
     }
 
     function toggleIsMintEnabled() external onlyOwner {
@@ -67,11 +67,16 @@ contract MyContract is ERC721, Ownable {
         maxSupply = maxSupply_;
     }
 
+    function setMintPrice(uint256 mintPrice_) external onlyOwner {
+        // Set the price dynamically
+        mintPrice = mintPrice_;
+    }
+
     function mint() external payable {
         // Prevent user mint any NFT before it starts
         require(isMintEnabled, 'minting not enabled');
         // Prevent user mint more NFTs than allowed
-        require(mintedWallets[msg.sender] < 1, 'exceeds max per wallet');
+        require(mintedWallets[msg.sender] < 20, 'exceeds max per wallet');
         // Prevent user from minting with wrong price
         require(msg.value == mintPrice, 'wrong value');
         // Prevent user mint more NFTs than total supply
@@ -84,6 +89,29 @@ contract MyContract is ERC721, Ownable {
         uint256 tokenId = totalSupply;
 
         _safeMint(msg.sender, tokenId);
+    }
+
+    /// @notice Mint several tokens at once
+    function mintBatch(uint256 number) external payable {
+        // Prevent user mint any NFT before it starts
+        require(isMintEnabled, 'minting not enabled');
+        // Prevent user mint more NFTs than allowed
+        require(mintedWallets[msg.sender] + number < 20, 'exceeds max per wallet');
+        // Prevent user from minting with wrong price
+        require(msg.value == mintPrice * number, 'wrong value');
+        // Prevent user mint more NFTs than total supply
+        require(maxSupply > totalSupply, 'sold out');
+
+        for (uint256 i; i < number; i++) {
+            mintedWallets[msg.sender]++;
+
+            totalSupply++;
+
+            uint256 tokenId = totalSupply;
+
+            _safeMint(msg.sender, tokenId);
+        }
+
     }
 
 
