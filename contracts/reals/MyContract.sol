@@ -2,6 +2,8 @@
 pragma solidity ^0.8.0;
 
 import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
+// import '@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol';
+import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 
 contract ERC20Token {
@@ -13,7 +15,8 @@ contract ERC20Token {
     }
 }
 
-contract MyContract is ERC721, Ownable {
+// contract MyContract is ERC721, Ownable {
+contract MyContract is ERC721Enumerable, Ownable {
     // mapping(address => uint256) public balances;
     // address payable wallet;
     // address public token;
@@ -49,14 +52,21 @@ contract MyContract is ERC721, Ownable {
     // https://www.youtube.com/watch?v=8WPzUbJyoNg
 
     uint256 public mintPrice = 0.05 ether;
-    uint256 public totalSupply;
     uint256 public maxSupply;
     bool public isMintEnabled;
     mapping(address => uint256) public mintedWallets;
+    /// @dev Base token URI used as a prefix by tokenURI().
+    string public baseTokenURI;
+    string[] private tokenURIArray;
 
     constructor() payable ERC721('Simple Mint', 'SIMPLEMINT') {
         // 375 NFT for maximum
         maxSupply = 375; 
+        baseTokenURI = "";
+        tokenURIArray = [
+            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
+            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg"
+        ];
     }
 
     function toggleIsMintEnabled() external onlyOwner {
@@ -72,6 +82,31 @@ contract MyContract is ERC721, Ownable {
         mintPrice = mintPrice_;
     }
 
+    /// @dev Returns an URI for a given token ID
+    function _baseURI() internal view virtual override returns (string memory) {
+        return baseTokenURI;
+    }
+
+    /// @dev Sets the base token URI prefix.
+    function setBaseTokenURI(string memory _baseTokenURI) public {
+        baseTokenURI = _baseTokenURI;
+    }
+
+    function mintHandler() internal {
+
+        mintedWallets[msg.sender]++;
+
+        // totalSupply++;
+
+        uint256 tokenId = totalSupply() + 1;
+
+        string memory tokenURINeo = tokenURIArray[totalSupply()];
+
+        _safeMint(msg.sender, tokenId);
+
+        _setTokenURI(tokenId, tokenURINeo);
+    }
+
     function mint() external payable {
         // Prevent user mint any NFT before it starts
         require(isMintEnabled, 'minting not enabled');
@@ -80,15 +115,9 @@ contract MyContract is ERC721, Ownable {
         // Prevent user from minting with wrong price
         require(msg.value == mintPrice, 'wrong value');
         // Prevent user mint more NFTs than total supply
-        require(maxSupply > totalSupply, 'sold out');
+        require(maxSupply > totalSupply() + 1, 'sold out');
 
-        mintedWallets[msg.sender]++;
-
-        totalSupply++;
-
-        uint256 tokenId = totalSupply;
-
-        _safeMint(msg.sender, tokenId);
+        mintHandler();
     }
 
     /// @notice Mint several tokens at once
@@ -100,19 +129,67 @@ contract MyContract is ERC721, Ownable {
         // Prevent user from minting with wrong price
         require(msg.value == mintPrice * number, 'wrong value');
         // Prevent user mint more NFTs than total supply
-        require(maxSupply > totalSupply, 'sold out');
+        require(maxSupply > totalSupply() + 1, 'sold out');
 
         for (uint256 i; i < number; i++) {
-            mintedWallets[msg.sender]++;
-
-            totalSupply++;
-
-            uint256 tokenId = totalSupply;
-
-            _safeMint(msg.sender, tokenId);
+            mintHandler();
         }
 
     }
 
+    // ERC721URIStorage.sol
+    // Optional mapping for token URIs
+    mapping (uint256 => string) private _tokenURIs;
+
+    /**
+     * @dev See {IERC721Metadata-tokenURI}.
+     */
+    function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
+        require(_exists(tokenId), "ERC721URIStorage: URI query for nonexistent token");
+
+        string memory _tokenURI = _tokenURIs[tokenId];
+        string memory base = _baseURI();
+
+        // If there is no base URI, return the token URI.
+        if (bytes(base).length == 0) {
+            return _tokenURI;
+        }
+        // If both are set, concatenate the baseURI and tokenURI (via abi.encodePacked).
+        if (bytes(_tokenURI).length > 0) {
+            return string(abi.encodePacked(base, _tokenURI));
+        }
+
+        return super.tokenURI(tokenId);
+    }
+
+    /**
+     * @dev Sets `_tokenURI` as the tokenURI of `tokenId`.
+     *
+     * Requirements:
+     *
+     * - `tokenId` must exist.
+     */
+    function _setTokenURI(uint256 tokenId, string memory _tokenURI) internal virtual {
+        require(_exists(tokenId), "ERC721URIStorage: URI set of nonexistent token");
+        _tokenURIs[tokenId] = _tokenURI;
+    }
+
+    /**
+     * @dev Destroys `tokenId`.
+     * The approval is cleared when the token is burned.
+     *
+     * Requirements:
+     *
+     * - `tokenId` must exist.
+     *
+     * Emits a {Transfer} event.
+     */
+    function _burn(uint256 tokenId) internal virtual override {
+        super._burn(tokenId);
+
+        if (bytes(_tokenURIs[tokenId]).length != 0) {
+            delete _tokenURIs[tokenId];
+        }
+    }
 
 }

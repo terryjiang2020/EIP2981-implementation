@@ -1,0 +1,15 @@
+{
+    "attributes": [
+      {
+        "trait_type": "Breed",
+        "value": "Maltipoo"
+      },
+      {
+        "trait_type": "Eye color",
+        "value": "Mocha"
+      }
+    ],
+    "description": "The world's most adorable and sensitive pup.",
+    "image": "ipfs://QmbfWM4uPu1x3jz9vMNP8r1spwJtndvLgjtr3rjTPXF4wB",
+    "name": "Vector 77"
+  }
