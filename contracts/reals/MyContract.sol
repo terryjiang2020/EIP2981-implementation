@@ -17,36 +17,6 @@ contract ERC20Token {
 
 // contract MyContract is ERC721, Ownable {
 contract MyContract is ERC721Enumerable, Ownable {
-    // mapping(address => uint256) public balances;
-    // address payable wallet;
-    // address public token;
-
-    // event Purchase (
-    //     address _buyer,
-    //     uint256 _amount
-    // );
-
-    // constructor(address payable _wallet, address _token) {
-    //     wallet = _wallet;
-    //     token = _token;
-    // }
-
-    // fallback() external payable {
-    //     buyToken();
-    // }
-
-    // function buyToken() public payable {
-    //     // // Buy a token
-    //     // balances[msg.sender] += 1;
-
-    //     // Mint a token
-    //     ERC20Token _token = ERC20Token(address(token));
-    //     _token.mint();
-
-    //     // Send ether to the wallet
-    //     wallet.transfer(msg.value);
-    //     emit Purchase(msg.sender, 1);
-    // }
 
     // NFT contract starts
     // https://www.youtube.com/watch?v=8WPzUbJyoNg
