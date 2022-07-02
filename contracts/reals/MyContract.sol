@@ -35,6 +35,28 @@ contract MyContract is ERC721Enumerable, Ownable {
         baseTokenURI = "";
         tokenURIArray = [
             "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
+            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg",
+            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
+            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg",
+            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
+            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg",
+            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
+            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg",
+            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
+            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg",
+            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
+            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg",
+            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
+            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg",
+            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
+            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg",
+            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
+            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg",
+            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
+            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg",
+            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
+            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg",
+            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
             "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg"
         ];
     }
@@ -75,6 +97,8 @@ contract MyContract is ERC721Enumerable, Ownable {
         _safeMint(msg.sender, tokenId);
 
         _setTokenURI(tokenId, tokenURINeo);
+
+        return;
     }
 
     function mint() external payable {
