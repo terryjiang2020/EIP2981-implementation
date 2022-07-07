@@ -5,6 +5,7 @@ import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 // import '@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol';
 import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
+import '../IERC2981Royalties.sol';
 
 contract ERC20Token {
     string public name;
@@ -16,10 +17,30 @@ contract ERC20Token {
 }
 
 // contract MyContract is ERC721, Ownable {
-contract MyContract is ERC721Enumerable, Ownable {
+contract MyContract is ERC721Enumerable, Ownable, IERC2981Royalties {
 
     // NFT contract starts
     // https://www.youtube.com/watch?v=8WPzUbJyoNg
+
+    struct RoyaltyInfo {
+        address recipient;
+        uint24 amount;
+    }
+
+    /// @inheritdoc	ERC165
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override
+        returns (bool)
+    {
+        return
+            interfaceId == type(IERC2981Royalties).interfaceId ||
+            super.supportsInterface(interfaceId);
+    }
+
+    RoyaltyInfo private _royalties;
 
     uint256 public mintPrice = 0.05 ether;
     uint256 public maxSupply;
@@ -29,7 +50,7 @@ contract MyContract is ERC721Enumerable, Ownable {
     string public baseTokenURI;
     string[] private tokenURIArray;
 
-    constructor() payable ERC721('Simple Mint', 'SIMPLEMINT') {
+    constructor() payable ERC721('Senkusha Ash Supe', 'SENKUSHAASHSUPE') {
         // 375 NFT for maximum
         maxSupply = 375; 
         baseTokenURI = "";
@@ -184,6 +205,34 @@ contract MyContract is ERC721Enumerable, Ownable {
         if (bytes(_tokenURIs[tokenId]).length != 0) {
             delete _tokenURIs[tokenId];
         }
+    }
+
+    /// @dev Sets token royalties
+    /// @param recipient recipient of the royalties
+    /// @param value percentage (using 2 decimals - 10000 = 100, 0 = 0)
+    function _setRoyalties(address recipient, uint256 value) internal {
+        require(value <= 10000, 'ERC2981Royalties: Too high');
+        _royalties = RoyaltyInfo(recipient, uint24(value));
+    }
+
+    /// @notice Allows to set the royalties on the contract
+    /// @dev This function in a real contract should be protected with a onlyOwner (or equivalent) modifier
+    /// @param recipient the royalties recipient
+    /// @param value royalties value (between 0 and 10000)
+    function setRoyalties(address recipient, uint256 value) external onlyOwner {
+        _setRoyalties(recipient, value);
+    }
+
+    /// @inheritdoc	IERC2981Royalties
+    function royaltyInfo(uint256, uint256 value)
+        external
+        view
+        override
+        returns (address receiver, uint256 royaltyAmount)
+    {
+        RoyaltyInfo memory royalties = _royalties;
+        receiver = royalties.recipient;
+        royaltyAmount = (value * royalties.amount) / 10000;
     }
 
 }
