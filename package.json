@@ -22,5 +22,8 @@
     "hardhat-deploy-ethers": "*",
     "hardhat-gas-reporter": "1.0.4",
     "hardhat-tracer": "*"
+  },
+  "dependencies": {
+    "@chainlink/contracts": "^0.4.1"
   }
 }

@@ -5,9 +5,9 @@ import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 // import '@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol';
 import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
-import '../IERC2981Royalties.sol';
+import '@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol';
 
-contract ERC20Token {
+contract ERC5Token {
     string public name;
     mapping(address => uint256) public balances;
 
@@ -17,7 +17,20 @@ contract ERC20Token {
 }
 
 // contract MyContract is ERC721, Ownable {
-contract MyContract is ERC721Enumerable, Ownable, IERC2981Royalties {
+contract MyContract is ERC721Enumerable, Ownable {
+
+    AggregatorV3Interface internal priceFeed = AggregatorV3Interface(0x8A753747A1Fa494EC906cE90E9f37563A8AF630e);
+
+    function getLatestPrice() public view returns (uint256) {
+        (
+            uint80 roundID, 
+            int256 price,
+            uint startedAt,
+            uint timeStamp,
+            uint80 answeredInRound
+        ) = priceFeed.latestRoundData();
+        return uint256(price);
+    }
 
     // NFT contract starts
     // https://www.youtube.com/watch?v=8WPzUbJyoNg
@@ -27,22 +40,11 @@ contract MyContract is ERC721Enumerable, Ownable, IERC2981Royalties {
         uint24 amount;
     }
 
-    /// @inheritdoc	ERC165
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        virtual
-        override
-        returns (bool)
-    {
-        return
-            interfaceId == type(IERC2981Royalties).interfaceId ||
-            super.supportsInterface(interfaceId);
-    }
-
     RoyaltyInfo private _royalties;
 
     uint256 public mintPrice = 0.05 ether;
+    uint256 public ethPrice = 0;
+    uint256 public unitRaise = 10500 / 375;
     uint256 public maxSupply;
     bool public isMintEnabled;
     mapping(address => uint256) public mintedWallets;
@@ -53,6 +55,7 @@ contract MyContract is ERC721Enumerable, Ownable, IERC2981Royalties {
     constructor() payable ERC721('Senkusha Ash Supe', 'SENKUSHAASHSUPE') {
         // 375 NFT for maximum
         maxSupply = 375; 
+        _setRoyalties(msg.sender, 500);
         baseTokenURI = "";
         tokenURIArray = [
             "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
@@ -80,10 +83,12 @@ contract MyContract is ERC721Enumerable, Ownable, IERC2981Royalties {
             "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
             "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg"
         ];
+        resetMintPrice();
     }
 
     function toggleIsMintEnabled() external onlyOwner {
         isMintEnabled = !isMintEnabled;
+        resetMintPrice();
     }
 
     function setMaxSupply(uint256 maxSupply_) external onlyOwner {
@@ -95,6 +100,10 @@ contract MyContract is ERC721Enumerable, Ownable, IERC2981Royalties {
         mintPrice = mintPrice_;
     }
 
+    function setEthPrice(uint256 ethPrice_) internal {
+        ethPrice = ethPrice_;
+    }
+
     /// @dev Returns an URI for a given token ID
     function _baseURI() internal view virtual override returns (string memory) {
         return baseTokenURI;
@@ -103,6 +112,14 @@ contract MyContract is ERC721Enumerable, Ownable, IERC2981Royalties {
     /// @dev Sets the base token URI prefix.
     function setBaseTokenURI(string memory _baseTokenURI) public {
         baseTokenURI = _baseTokenURI;
+    }
+
+    function resetMintPrice() public {
+        uint256 _latestPrice = getLatestPrice();
+        setEthPrice(_latestPrice);
+        uint256 _unitRaise = unitRaise * 1e8;
+        mintPrice = uint256(uint(_unitRaise) / uint(ethPrice) * 1e18);
+        return;
     }
 
     function mintHandler() internal {
@@ -123,10 +140,11 @@ contract MyContract is ERC721Enumerable, Ownable, IERC2981Royalties {
     }
 
     function mint() external payable {
+        resetMintPrice();
         // Prevent user mint any NFT before it starts
         require(isMintEnabled, 'minting not enabled');
         // Prevent user mint more NFTs than allowed
-        require(mintedWallets[msg.sender] < 20, 'exceeds max per wallet');
+        require(mintedWallets[msg.sender] < 5, 'exceeds max per wallet');
         // Prevent user from minting with wrong price
         require(msg.value == mintPrice, 'wrong value');
         // Prevent user mint more NFTs than total supply
@@ -137,10 +155,11 @@ contract MyContract is ERC721Enumerable, Ownable, IERC2981Royalties {
 
     /// @notice Mint several tokens at once
     function mintBatch(uint256 number) external payable {
+        resetMintPrice();
         // Prevent user mint any NFT before it starts
         require(isMintEnabled, 'minting not enabled');
         // Prevent user mint more NFTs than allowed
-        require(mintedWallets[msg.sender] + number < 20, 'exceeds max per wallet');
+        require(mintedWallets[msg.sender] + number < 5, 'exceeds max per wallet');
         // Prevent user from minting with wrong price
         require(msg.value == mintPrice * number, 'wrong value');
         // Prevent user mint more NFTs than total supply
@@ -221,18 +240,6 @@ contract MyContract is ERC721Enumerable, Ownable, IERC2981Royalties {
     /// @param value royalties value (between 0 and 10000)
     function setRoyalties(address recipient, uint256 value) external onlyOwner {
         _setRoyalties(recipient, value);
-    }
-
-    /// @inheritdoc	IERC2981Royalties
-    function royaltyInfo(uint256, uint256 value)
-        external
-        view
-        override
-        returns (address receiver, uint256 royaltyAmount)
-    {
-        RoyaltyInfo memory royalties = _royalties;
-        receiver = royalties.recipient;
-        royaltyAmount = (value * royalties.amount) / 10000;
     }
 
 }
