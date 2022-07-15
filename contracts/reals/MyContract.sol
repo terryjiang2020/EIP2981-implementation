@@ -43,6 +43,8 @@ contract MyContract is ERC721Enumerable, Ownable {
     RoyaltyInfo private _royalties;
 
     uint256 public mintPrice = 0.05 ether;
+    uint256 public minMintPrice = 0.05 ether;
+    uint256 public maxMintPrice = 0.05 ether;
     uint256 public ethPrice = 0;
     uint256 public unitRaise = 10500 / 375;
     uint256 public maxSupply;
@@ -117,8 +119,10 @@ contract MyContract is ERC721Enumerable, Ownable {
     function resetMintPrice() public {
         uint256 _latestPrice = getLatestPrice();
         setEthPrice(_latestPrice);
-        uint256 _unitRaise = unitRaise * 1e8;
-        mintPrice = uint256(uint(_unitRaise) / uint(ethPrice) * 1e18);
+        uint256 _unitRaise = unitRaise * 1.129e26;
+        mintPrice = uint256(uint(_unitRaise) / uint(ethPrice));
+        minMintPrice = uint256(mintPrice / 100 * 99);
+        maxMintPrice = uint256(mintPrice / 100 * 101);
         return;
     }
 
@@ -146,7 +150,9 @@ contract MyContract is ERC721Enumerable, Ownable {
         // Prevent user mint more NFTs than allowed
         require(mintedWallets[msg.sender] < 5, 'exceeds max per wallet');
         // Prevent user from minting with wrong price
-        require(msg.value == mintPrice, 'wrong value');
+        // require(msg.value == mintPrice, 'wrong value');
+        require(msg.value < minMintPrice, 'wrong value');
+        require(msg.value > maxMintPrice, 'wrong value');
         // Prevent user mint more NFTs than total supply
         require(maxSupply > totalSupply() + 1, 'sold out');
 
@@ -161,7 +167,9 @@ contract MyContract is ERC721Enumerable, Ownable {
         // Prevent user mint more NFTs than allowed
         require(mintedWallets[msg.sender] + number < 5, 'exceeds max per wallet');
         // Prevent user from minting with wrong price
-        require(msg.value == mintPrice * number, 'wrong value');
+        // require(msg.value == mintPrice * number, 'wrong value');
+        require(msg.value < minMintPrice * number, 'wrong value');
+        require(msg.value > maxMintPrice * number, 'wrong value');
         // Prevent user mint more NFTs than total supply
         require(maxSupply > totalSupply() + 1, 'sold out');
 
