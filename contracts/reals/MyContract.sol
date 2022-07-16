@@ -57,7 +57,7 @@ contract MyContract is ERC721Enumerable, Ownable {
     constructor() payable ERC721('Senkusha Ash Supe', 'SENKUSHAASHSUPE') {
         // 375 NFT for maximum
         maxSupply = 375; 
-        _setRoyalties(msg.sender, 500);
+        _setRoyalties(msg.sender, 350);
         baseTokenURI = "";
         tokenURIArray = [
             "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
@@ -119,11 +119,35 @@ contract MyContract is ERC721Enumerable, Ownable {
     function resetMintPrice() public {
         uint256 _latestPrice = getLatestPrice();
         setEthPrice(_latestPrice);
-        uint256 _unitRaise = unitRaise * 1.129e26;
+        uint256 _unitRaise = unitRaise * 1e26 / 1000 * 1129;
         mintPrice = uint256(uint(_unitRaise) / uint(ethPrice));
         minMintPrice = uint256(mintPrice / 100 * 99);
         maxMintPrice = uint256(mintPrice / 100 * 101);
         return;
+    }
+
+    function getMintPrice() public view returns (uint256) {
+        uint256 _latestPrice = getLatestPrice();
+
+        uint256 _unitRaise = unitRaise * 1e26 / 1000 * 1129;
+
+        return uint256(uint(_unitRaise) / uint(_latestPrice));
+    }
+
+    function getMinMintPrice() public view returns (uint256) {
+        uint256 _latestPrice = getLatestPrice();
+
+        uint256 _unitRaise = unitRaise * 1e26 / 1000 * 1129 / 100 * 99;
+
+        return uint256(uint(_unitRaise) / uint(_latestPrice));
+    }
+
+    function getMaxMintPrice() public view returns (uint256) {
+        uint256 _latestPrice = getLatestPrice();
+
+        uint256 _unitRaise = unitRaise * 1e26 / 1000 * 1129 / 100 * 101;
+
+        return uint256(uint(_unitRaise) / uint(_latestPrice));
     }
 
     function mintHandler() internal {
@@ -151,8 +175,8 @@ contract MyContract is ERC721Enumerable, Ownable {
         require(mintedWallets[msg.sender] < 5, 'exceeds max per wallet');
         // Prevent user from minting with wrong price
         // require(msg.value == mintPrice, 'wrong value');
-        require(msg.value < minMintPrice, 'wrong value');
-        require(msg.value > maxMintPrice, 'wrong value');
+        require(msg.value > minMintPrice, 'wrong value');
+        require(msg.value < maxMintPrice, 'wrong value');
         // Prevent user mint more NFTs than total supply
         require(maxSupply > totalSupply() + 1, 'sold out');
 
@@ -168,8 +192,8 @@ contract MyContract is ERC721Enumerable, Ownable {
         require(mintedWallets[msg.sender] + number < 5, 'exceeds max per wallet');
         // Prevent user from minting with wrong price
         // require(msg.value == mintPrice * number, 'wrong value');
-        require(msg.value < minMintPrice * number, 'wrong value');
-        require(msg.value > maxMintPrice * number, 'wrong value');
+        require(msg.value > minMintPrice * number, 'wrong value');
+        require(msg.value < maxMintPrice * number, 'wrong value');
         // Prevent user mint more NFTs than total supply
         require(maxSupply > totalSupply() + 1, 'sold out');
 
