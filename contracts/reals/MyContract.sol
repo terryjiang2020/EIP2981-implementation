@@ -6,6 +6,8 @@ import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol';
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 contract ERC5Token {
     string public name;
@@ -52,39 +54,15 @@ contract MyContract is ERC721Enumerable, Ownable {
     mapping(address => uint256) public mintedWallets;
     /// @dev Base token URI used as a prefix by tokenURI().
     string public baseTokenURI;
-    string[] private tokenURIArray;
+    using ECDSA for bytes32;
+    address private _systemAddress;
+    mapping(string => bool) public _usedNonces;
 
     constructor() payable ERC721('Senkusha Ash Supe', 'SENKUSHAASHSUPE') {
         // 375 NFT for maximum
         maxSupply = 375; 
         _setRoyalties(msg.sender, 350);
         baseTokenURI = "";
-        tokenURIArray = [
-            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
-            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg",
-            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
-            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg",
-            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
-            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg",
-            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
-            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg",
-            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
-            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg",
-            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
-            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg",
-            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
-            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg",
-            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
-            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg",
-            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
-            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg",
-            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
-            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg",
-            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
-            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg",
-            "https://gateway.pinata.cloud/ipfs/QmV6T3pSLoGXUWUky23bkrvaaqw92PneQQTZvN8BsArToW",
-            "https://gateway.pinata.cloud/ipfs/QmXpMWXTnpuvgZxAMwkW2AFd2co878RaW6BURUfSJVAghg"
-        ];
         resetMintPrice();
     }
 
@@ -158,7 +136,10 @@ contract MyContract is ERC721Enumerable, Ownable {
 
         uint256 tokenId = totalSupply() + 1;
 
-        string memory tokenURINeo = tokenURIArray[totalSupply()];
+        string memory tokenURINeo = string.concat(
+            'https://gateway.pinata.cloud/ipfs/QmQFCEGhn82s4Dty8jU3DsXN2A5iZtP77EEXXsZjtL2rdz/',
+            Strings.toString(tokenId)
+        );
 
         _safeMint(msg.sender, tokenId);
 
@@ -172,7 +153,7 @@ contract MyContract is ERC721Enumerable, Ownable {
         // Prevent user mint any NFT before it starts
         require(isMintEnabled, 'minting not enabled');
         // Prevent user mint more NFTs than allowed
-        require(mintedWallets[msg.sender] < 5, 'exceeds max per wallet');
+        require(mintedWallets[msg.sender] <= 5, 'exceeds max per wallet');
         // Prevent user from minting with wrong price
         // require(msg.value == mintPrice, 'wrong value');
         require(msg.value > minMintPrice, 'wrong value');
@@ -189,7 +170,7 @@ contract MyContract is ERC721Enumerable, Ownable {
         // Prevent user mint any NFT before it starts
         require(isMintEnabled, 'minting not enabled');
         // Prevent user mint more NFTs than allowed
-        require(mintedWallets[msg.sender] + number < 5, 'exceeds max per wallet');
+        require(mintedWallets[msg.sender] + number <= 5, 'exceeds max per wallet');
         // Prevent user from minting with wrong price
         // require(msg.value == mintPrice * number, 'wrong value');
         require(msg.value > minMintPrice * number, 'wrong value');
@@ -200,7 +181,83 @@ contract MyContract is ERC721Enumerable, Ownable {
         for (uint256 i; i < number; i++) {
             mintHandler();
         }
+    }
 
+    function freeMint(
+        string memory nonce,
+        bytes32 hash,
+        bytes memory signature
+    ) external payable {
+        // Prevent user mint any NFT before it starts
+        require(isMintEnabled, 'minting not enabled');
+        // Prevent user from minting with wrong price
+        require(msg.value == 0, 'wrong value');
+        // Prevent user mint more NFTs than total supply
+        require(maxSupply > totalSupply() + 1, 'sold out');
+        // Prevent user mint from outside of the webiste
+        require(maxSupply > totalSupply() + 1, 'sold out');
+
+        // signature realted
+        require(matchSigner(hash, signature), "Plz mint through website");
+        require(!_usedNonces[nonce], "Hash reused");
+        require(
+            hashTransaction(msg.sender, 1, nonce) == hash,
+            "Hash failed"
+        );
+
+        _usedNonces[nonce] = true;
+
+        mintHandler();
+    }
+
+    /// @notice Mint several tokens at once
+    function freeMintBatch(
+        uint256 number,
+        string memory nonce,
+        bytes32 hash,
+        bytes memory signature
+    ) external payable {
+        // Prevent user mint any NFT before it starts
+        require(isMintEnabled, 'minting not enabled');
+        // Prevent user mint more NFTs than allowed
+        require(mintedWallets[msg.sender] + number <= 5, 'exceeds max per wallet');
+        // Prevent user from minting with wrong price
+        require(msg.value == 0, 'wrong value');
+        // Prevent user mint more NFTs than total supply
+        require(maxSupply > totalSupply() + 1, 'sold out');
+
+
+        // signature realted
+        require(matchSigner(hash, signature), "Plz mint through website");
+        require(!_usedNonces[nonce], "Hash reused");
+        require(
+            hashTransaction(msg.sender, number, nonce) == hash,
+            "Hash failed"
+        );
+
+        _usedNonces[nonce] = true;
+
+        for (uint256 i; i < number; i++) {
+            mintHandler();
+        }
+    }
+  
+    function matchSigner(bytes32 hash, bytes memory signature) public view returns (bool) {
+        return _systemAddress == hash.toEthSignedMessageHash().recover(signature);
+    }
+
+
+    function hashTransaction(
+        address sender,
+        uint256 amount,
+        string memory nonce
+    ) public view returns (bytes32) {
+    
+        bytes32 hash = keccak256(
+        abi.encodePacked(sender, amount, nonce, address(this))
+        );
+
+        return hash;
     }
 
     // ERC721URIStorage.sol
