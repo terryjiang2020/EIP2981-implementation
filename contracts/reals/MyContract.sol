@@ -2,12 +2,10 @@
 pragma solidity ^0.8.0;
 
 import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
-// import '@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol';
 import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol';
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
 
 contract ERC5Token {
     string public name;
@@ -55,7 +53,7 @@ contract MyContract is ERC721Enumerable, Ownable {
     /// @dev Base token URI used as a prefix by tokenURI().
     string public baseTokenURI;
     using ECDSA for bytes32;
-    address private _systemAddress;
+    address private _systemAddress = 0xe45539fE76E31DF9D126f6Aa59B8d24267394524;
     mapping(string => bool) public _usedNonces;
 
     constructor() payable ERC721('Senkusha Ash Supe', 'SENKUSHAASHSUPE') {
@@ -80,7 +78,7 @@ contract MyContract is ERC721Enumerable, Ownable {
         mintPrice = mintPrice_;
     }
 
-    function setEthPrice(uint256 ethPrice_) internal {
+    function _setEthPrice(uint256 ethPrice_) internal {
         ethPrice = ethPrice_;
     }
 
@@ -96,7 +94,7 @@ contract MyContract is ERC721Enumerable, Ownable {
 
     function resetMintPrice() public {
         uint256 _latestPrice = getLatestPrice();
-        setEthPrice(_latestPrice);
+        _setEthPrice(_latestPrice);
         uint256 _unitRaise = unitRaise * 1e26 / 1000 * 1129;
         mintPrice = uint256(uint(_unitRaise) / uint(ethPrice));
         minMintPrice = uint256(mintPrice / 100 * 99);
@@ -112,23 +110,29 @@ contract MyContract is ERC721Enumerable, Ownable {
         return uint256(uint(_unitRaise) / uint(_latestPrice));
     }
 
-    function getMinMintPrice() public view returns (uint256) {
-        uint256 _latestPrice = getLatestPrice();
-
-        uint256 _unitRaise = unitRaise * 1e26 / 1000 * 1129 / 100 * 99;
-
-        return uint256(uint(_unitRaise) / uint(_latestPrice));
+    function _uint2str(uint _i) internal pure returns (string memory _uintAsString) {
+        if (_i == 0) {
+            return "0";
+        }
+        uint j = _i;
+        uint len;
+        while (j != 0) {
+            len++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(len);
+        uint k = len;
+        while (_i != 0) {
+            k = k-1;
+            uint8 temp = (48 + uint8(_i - _i / 10 * 10));
+            bytes1 b1 = bytes1(temp);
+            bstr[k] = b1;
+            _i /= 10;
+        }
+        return string(bstr);
     }
 
-    function getMaxMintPrice() public view returns (uint256) {
-        uint256 _latestPrice = getLatestPrice();
-
-        uint256 _unitRaise = unitRaise * 1e26 / 1000 * 1129 / 100 * 101;
-
-        return uint256(uint(_unitRaise) / uint(_latestPrice));
-    }
-
-    function mintHandler() internal {
+    function _mintHandler() internal {
 
         mintedWallets[msg.sender]++;
 
@@ -136,9 +140,9 @@ contract MyContract is ERC721Enumerable, Ownable {
 
         uint256 tokenId = totalSupply() + 1;
 
-        string memory tokenURINeo = string.concat(
+        string memory tokenURINeo = _concat(
             'https://gateway.pinata.cloud/ipfs/QmQFCEGhn82s4Dty8jU3DsXN2A5iZtP77EEXXsZjtL2rdz/',
-            Strings.toString(tokenId)
+            _uint2str(tokenId)
         );
 
         _safeMint(msg.sender, tokenId);
@@ -148,7 +152,15 @@ contract MyContract is ERC721Enumerable, Ownable {
         return;
     }
 
-    function mint() external payable {
+    function _concat(string memory _a, string memory _b) internal pure returns(string memory result) {
+        return string(abi.encodePacked(_a, _b));
+    }
+
+    function mint(
+        string memory nonce,
+        bytes32 hash,
+        bytes memory signature
+    ) external payable {
         resetMintPrice();
         // Prevent user mint any NFT before it starts
         require(isMintEnabled, 'minting not enabled');
@@ -161,11 +173,26 @@ contract MyContract is ERC721Enumerable, Ownable {
         // Prevent user mint more NFTs than total supply
         require(maxSupply > totalSupply() + 1, 'sold out');
 
-        mintHandler();
+        // signature related
+        require(matchSigner(hash, signature), "Plz mint through website");
+        require(!_usedNonces[nonce], "Hash reused");
+        require(
+            hashTransaction(msg.sender, 1, nonce) == hash,
+            "Hash failed"
+        );
+
+        _usedNonces[nonce] = true;
+
+        _mintHandler();
     }
 
     /// @notice Mint several tokens at once
-    function mintBatch(uint256 number) external payable {
+    function mintBatch(
+        uint256 number,
+        string memory nonce,
+        bytes32 hash,
+        bytes memory signature
+    ) external payable {
         resetMintPrice();
         // Prevent user mint any NFT before it starts
         require(isMintEnabled, 'minting not enabled');
@@ -178,26 +205,7 @@ contract MyContract is ERC721Enumerable, Ownable {
         // Prevent user mint more NFTs than total supply
         require(maxSupply > totalSupply() + 1, 'sold out');
 
-        for (uint256 i; i < number; i++) {
-            mintHandler();
-        }
-    }
-
-    function freeMint(
-        string memory nonce,
-        bytes32 hash,
-        bytes memory signature
-    ) external payable {
-        // Prevent user mint any NFT before it starts
-        require(isMintEnabled, 'minting not enabled');
-        // Prevent user from minting with wrong price
-        require(msg.value == 0, 'wrong value');
-        // Prevent user mint more NFTs than total supply
-        require(maxSupply > totalSupply() + 1, 'sold out');
-        // Prevent user mint from outside of the webiste
-        require(maxSupply > totalSupply() + 1, 'sold out');
-
-        // signature realted
+        // signature related
         require(matchSigner(hash, signature), "Plz mint through website");
         require(!_usedNonces[nonce], "Hash reused");
         require(
@@ -207,38 +215,8 @@ contract MyContract is ERC721Enumerable, Ownable {
 
         _usedNonces[nonce] = true;
 
-        mintHandler();
-    }
-
-    /// @notice Mint several tokens at once
-    function freeMintBatch(
-        uint256 number,
-        string memory nonce,
-        bytes32 hash,
-        bytes memory signature
-    ) external payable {
-        // Prevent user mint any NFT before it starts
-        require(isMintEnabled, 'minting not enabled');
-        // Prevent user mint more NFTs than allowed
-        require(mintedWallets[msg.sender] + number <= 5, 'exceeds max per wallet');
-        // Prevent user from minting with wrong price
-        require(msg.value == 0, 'wrong value');
-        // Prevent user mint more NFTs than total supply
-        require(maxSupply > totalSupply() + 1, 'sold out');
-
-
-        // signature realted
-        require(matchSigner(hash, signature), "Plz mint through website");
-        require(!_usedNonces[nonce], "Hash reused");
-        require(
-            hashTransaction(msg.sender, number, nonce) == hash,
-            "Hash failed"
-        );
-
-        _usedNonces[nonce] = true;
-
         for (uint256 i; i < number; i++) {
-            mintHandler();
+            _mintHandler();
         }
     }
   
@@ -330,5 +308,4 @@ contract MyContract is ERC721Enumerable, Ownable {
     function setRoyalties(address recipient, uint256 value) external onlyOwner {
         _setRoyalties(recipient, value);
     }
-
 }
