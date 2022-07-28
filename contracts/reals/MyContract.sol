@@ -6,6 +6,7 @@ import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol';
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "github.com/Arachnid/solidity-stringutils/strings.sol";
 
 contract ERC5Token {
     string public name;
@@ -55,6 +56,7 @@ contract MyContract is ERC721Enumerable, Ownable {
     using ECDSA for bytes32;
     address private _systemAddress = 0xe45539fE76E31DF9D126f6Aa59B8d24267394524;
     mapping(string => bool) public _usedNonces;
+    mapping(string => bool) public _usedUrls;
 
     constructor() payable ERC721('Senkusha Ash Supe', 'SENKUSHAASHSUPE') {
         // 375 NFT for maximum
@@ -156,36 +158,6 @@ contract MyContract is ERC721Enumerable, Ownable {
         return string(abi.encodePacked(_a, _b));
     }
 
-    function mint(
-        string memory nonce,
-        bytes32 hash,
-        bytes memory signature
-    ) external payable {
-        resetMintPrice();
-        // Prevent user mint any NFT before it starts
-        require(isMintEnabled, 'minting not enabled');
-        // Prevent user mint more NFTs than allowed
-        require(mintedWallets[msg.sender] <= 5, 'exceeds max per wallet');
-        // Prevent user from minting with wrong price
-        // require(msg.value == mintPrice, 'wrong value');
-        require(msg.value > minMintPrice, 'wrong value');
-        require(msg.value < maxMintPrice, 'wrong value');
-        // Prevent user mint more NFTs than total supply
-        require(maxSupply > totalSupply() + 1, 'sold out');
-
-        // signature related
-        require(matchSigner(hash, signature), "Plz mint through website");
-        require(!_usedNonces[nonce], "Hash reused");
-        require(
-            hashTransaction(msg.sender, 1, nonce) == hash,
-            "Hash failed"
-        );
-
-        _usedNonces[nonce] = true;
-
-        _mintHandler();
-    }
-
     /// @notice Mint several tokens at once
     function mintBatch(
         uint256 number,
@@ -206,12 +178,20 @@ contract MyContract is ERC721Enumerable, Ownable {
         require(maxSupply > totalSupply() + 1, 'sold out');
 
         // signature related
-        require(matchSigner(hash, signature), "Plz mint through website");
         require(!_usedNonces[nonce], "Hash reused");
         require(
             hashTransaction(msg.sender, 1, nonce) == hash,
             "Hash failed"
         );
+        // TODO: Check if the signature is in the format of free mint.
+        // If is, proceed with free mint matcher
+        // Otherwise, proceed with normal matcher
+        // Or we may consider making a separated mint function for free mint
+        // As we removed the single mint function, this may be working
+        // But we still at the risk of going oversize 
+        // string recoveredSig = hash.toEthSignedMessageHash().recover(signature);
+        // if (recoveredSig.contains("-"))
+        require(matchSigner(hash, signature), "Plz mint through website");
 
         _usedNonces[nonce] = true;
 
@@ -223,7 +203,40 @@ contract MyContract is ERC721Enumerable, Ownable {
     function matchSigner(bytes32 hash, bytes memory signature) public view returns (bool) {
         return _systemAddress == hash.toEthSignedMessageHash().recover(signature);
     }
+  
+    function matchSignerFreeMint(bytes32 hash, bytes memory signature) public view returns (bool) {
+        string[] strArray = _slice(hash.toEthSignedMessageHash().recover(signature));
+        return (
+            _systemAddress == strArray[0] &&
+            !_usedUrls[strArray[1]]
+        );
+    }
 
+    // Check if a string contains a symbol
+    // If we are going to separate mint function, this will be removed.
+    function _contains (string memory what, string memory where) internal returns (bool){
+        bytes memory whatBytes = bytes (what);
+        bytes memory whereBytes = bytes (where);
+
+        require(whereBytes.length >= whatBytes.length);
+
+        bool found = false;
+        for (uint i = 0; i <= whereBytes.length - whatBytes.length; i++) {
+            bool flag = true;
+            for (uint j = 0; j < whatBytes.length; j++)
+                if (whereBytes [i + j] != whatBytes [j]) {
+                    flag = false;
+                    break;
+                }
+            if (flag) {
+                found = true;
+                break;
+            }
+        }
+        require (found);
+
+        _;
+    }
 
     function hashTransaction(
         address sender,
@@ -307,5 +320,19 @@ contract MyContract is ERC721Enumerable, Ownable {
     /// @param value royalties value (between 0 and 10000)
     function setRoyalties(address recipient, uint256 value) external onlyOwner {
         _setRoyalties(recipient, value);
+    }           
+
+    // Slice a string with "-"
+    // Unsure if it is going to work
+    function _slice(string strInput) internal pure returns(string[] memory) {                                               
+        strings.slice memory s = strInput.toSlice();                
+        strings.slice memory delim = "-".toSlice();                            
+        string[] memory parts = new string[](s.count(delim));                  
+        for (uint i = 0; i < parts.length; i++) {                              
+           parts[i] = s.split(delim).toString();                               
+        }
+        return parts;
     }
+
+
 }
