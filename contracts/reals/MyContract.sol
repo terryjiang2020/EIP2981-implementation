@@ -125,6 +125,7 @@ contract MyContract is ERC721Enumerable, Ownable {
     function _concat(string memory _a, string memory _b) internal pure returns(string memory result) {
         return string(abi.encodePacked(_a, _b));
     }
+    // TODO: Use the random ID generated from the backend, check if ID is used, reject if is, record if otherwise
     /// @notice Mint several tokens at once
     function mintBatch(
         uint256 number,
