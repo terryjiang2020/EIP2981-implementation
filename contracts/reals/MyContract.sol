@@ -124,32 +124,6 @@ contract MyContract is ERC721Enumerable, Ownable {
     function _concat(string memory _a, string memory _b) internal pure returns(string memory result) {
         return string(abi.encodePacked(_a, _b));
     }
-    function mint(
-        string memory nonce,
-        bytes32 hash,
-        bytes memory signature
-    ) external payable {
-        resetMintPrice();
-        // Prevent user mint any NFT before it starts
-        require(isMintEnabled, 'minting not enabled');
-        // Prevent user mint more NFTs than allowed
-        require(mintedWallets[msg.sender] <= 5, 'exceeds max per wallet');
-        // Prevent user from minting with wrong price
-        // require(msg.value == mintPrice, 'wrong value');
-        require(msg.value > minMintPrice, 'wrong value');
-        require(msg.value < maxMintPrice, 'wrong value');
-        // Prevent user mint more NFTs than total supply
-        require(maxSupply > totalSupply() + 1, 'sold out');
-        // signature related
-        require(matchSigner(hash, signature), "Plz mint through website");
-        require(!_usedNonces[nonce], "Hash reused");
-        require(
-            hashTransaction(msg.sender, 1, nonce) == hash,
-            "Hash failed"
-        );
-        _usedNonces[nonce] = true;
-        _mintHandler();
-    }
     /// @notice Mint several tokens at once
     function mintBatch(
         uint256 number,
