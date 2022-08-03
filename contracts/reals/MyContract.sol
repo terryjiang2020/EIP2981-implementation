@@ -1,10 +1,11 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.6;
 import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol';
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "hardhat/console.sol";
 contract ERC5Token {
     string public name;
     mapping(address => uint256) public balances;
@@ -146,7 +147,68 @@ contract MyContract is ERC721Enumerable, Ownable {
         require(matchSigner(hash, signature), "Plz mint through website");
         require(!_usedNonces[nonce], "Hash reused");
         require(
-            hashTransaction(msg.sender, 1, nonce) == hash,
+            hashTransaction(msg.sender, 1, nonce, 1) == hash,
+            "Hash failed"
+        );
+        _usedNonces[nonce] = true;
+        for (uint256 i; i < number; i++) {
+            _mintHandler();
+        }
+    }
+
+    /// @notice Mint several tokens at once for Whitelist mint
+    function mintBatchWhitelist(
+        uint256 number,
+        string memory nonce,
+        bytes32 hash,
+        bytes memory signature
+    ) external payable {
+        resetMintPrice();
+        // Prevent user mint any NFT before it starts
+        require(isMintEnabled, 'minting not enabled');
+        // Prevent user mint more NFTs than allowed
+        require(mintedWallets[msg.sender] + number <= 5, 'exceeds max per wallet');
+        // Prevent user from minting with wrong price
+        // require(msg.value == mintPrice * number, 'wrong value');
+        require(msg.value > minMintPrice * number, 'wrong value');
+        require(msg.value < maxMintPrice * number, 'wrong value');
+        // Prevent user mint more NFTs than total supply
+        require(maxSupply > totalSupply() + 1, 'sold out');
+        // signature related
+        require(matchSigner(hash, signature), "Plz mint through website");
+        require(!_usedNonces[nonce], "Hash reused");
+        require(
+            hashTransaction(msg.sender, 1, nonce, 1) == hash,
+            "Hash failed"
+        );
+        _usedNonces[nonce] = true;
+        for (uint256 i; i < number; i++) {
+            _mintHandler();
+        }
+    }
+
+    /// @notice Mint several tokens at once for Free Mint
+    function mintBatchFree(
+        uint256 number,
+        string memory nonce,
+        bytes32 hash,
+        bytes memory signature
+    ) external payable {
+        resetMintPrice();
+        // Prevent user mint any NFT before it starts
+        require(isMintEnabled, 'minting not enabled');
+        // Prevent user mint more NFTs than allowed
+        require(mintedWallets[msg.sender] + number <= 5, 'exceeds max per wallet');
+        // Prevent user from minting with wrong price
+        // require(msg.value == mintPrice * number, 'wrong value');
+        require(msg.value == 0, 'wrong value');
+        // Prevent user mint more NFTs than total supply
+        require(maxSupply > totalSupply() + 1, 'sold out');
+        // signature related
+        require(matchSigner(hash, signature), "Plz mint through website");
+        require(!_usedNonces[nonce], "Hash reused");
+        require(
+            hashTransaction(msg.sender, 1, nonce, 3) == hash,
             "Hash failed"
         );
         _usedNonces[nonce] = true;
@@ -156,16 +218,18 @@ contract MyContract is ERC721Enumerable, Ownable {
     }
   
     function matchSigner(bytes32 hash, bytes memory signature) public view returns (bool) {
-        return _systemAddress == hash.toEthSignedMessageHash().recover(signature);
+        address signer = hash.toEthSignedMessageHash().recover(signature);
+        return _systemAddress == signer;
     }
     function hashTransaction(
         address sender,
         uint256 amount,
-        string memory nonce
+        string memory nonce,
+        uint256 typeId
     ) public view returns (bytes32) {
     
         bytes32 hash = keccak256(
-        abi.encodePacked(sender, amount, nonce, address(this))
+            abi.encodePacked(sender, amount, nonce, address(this), typeId)
         );
         return hash;
     }
