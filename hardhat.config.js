@@ -5,12 +5,13 @@ require('hardhat-deploy-ethers');
 require('hardhat-tracer');
 require('@nomiclabs/hardhat-etherscan');
 require("hardhat-gas-reporter");
+require('hardhat-contract-sizer');
 /**
  * @type import('hardhat/config').HardhatUserConfig
  */
 module.exports = {
     solidity: {
-        version: '0.8.0',
+        version: '0.8.7',
         settings: {
             optimizer: {
                 enabled: true,
