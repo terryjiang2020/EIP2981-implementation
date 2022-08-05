@@ -46,6 +46,7 @@ contract MyContract is ERC721Enumerable, Ownable {
     using ECDSA for bytes32;
     address private _systemAddress = 0xe45539fE76E31DF9D126f6Aa59B8d24267394524;
     mapping(string => bool) public _usedNonces;
+    mapping(uint256 => bool) public _usedNftIds;
     constructor() payable ERC721('Senkusha Ash Supe', 'SENKUSHAASHSUPE') {
         // 375 NFT for maximum
         maxSupply = 375; 
@@ -110,16 +111,17 @@ contract MyContract is ERC721Enumerable, Ownable {
         }
         return string(bstr);
     }
-    function _mintHandler() internal {
+    function _mintHandler(uint256 nftId) internal {
         mintedWallets[msg.sender]++;
         // totalSupply++;
-        uint256 tokenId = totalSupply() + 1;
+        uint256 tokenId = nftId;
         string memory tokenURINeo = _concat(
             'https://gateway.pinata.cloud/ipfs/QmQFCEGhn82s4Dty8jU3DsXN2A5iZtP77EEXXsZjtL2rdz/',
             _uint2str(tokenId)
         );
         _safeMint(msg.sender, tokenId);
         _setTokenURI(tokenId, tokenURINeo);
+        _usedNftIds[nftId] = true;
         return;
     }
     function _concat(string memory _a, string memory _b) internal pure returns(string memory result) {
@@ -131,7 +133,8 @@ contract MyContract is ERC721Enumerable, Ownable {
         uint256 number,
         string memory nonce,
         bytes32 hash,
-        bytes memory signature
+        bytes memory signature,
+        uint256[] memory nftIds
     ) external payable {
         resetMintPrice();
         // Prevent user mint any NFT before it starts
@@ -147,13 +150,17 @@ contract MyContract is ERC721Enumerable, Ownable {
         // signature related
         require(matchSigner(hash, signature), "Plz mint through website");
         require(!_usedNonces[nonce], "Hash reused");
+        require(nftIds.length > 0, "NFT ID must be provided");
+        for (uint256 j; j < nftIds.length; j++) {
+            require(!_usedNftIds[nftIds[j]], "NFT has been minted");
+        }
         require(
-            hashTransaction(msg.sender, 1, nonce, 1) == hash,
+            hashTransaction(msg.sender, 1, nonce, 1, nftIds) == hash,
             "Hash failed"
         );
         _usedNonces[nonce] = true;
         for (uint256 i; i < number; i++) {
-            _mintHandler();
+            _mintHandler(nftIds[i]);
         }
     }
 
@@ -162,7 +169,8 @@ contract MyContract is ERC721Enumerable, Ownable {
         uint256 number,
         string memory nonce,
         bytes32 hash,
-        bytes memory signature
+        bytes memory signature,
+        uint256[] memory nftIds
     ) external payable {
         resetMintPrice();
         // Prevent user mint any NFT before it starts
@@ -178,13 +186,17 @@ contract MyContract is ERC721Enumerable, Ownable {
         // signature related
         require(matchSigner(hash, signature), "Plz mint through website");
         require(!_usedNonces[nonce], "Hash reused");
+        require(nftIds.length > 0, "NFT ID must be provided");
+        for (uint256 j; j < nftIds.length; j++) {
+            require(!_usedNftIds[nftIds[j]], "NFT has been minted");
+        }
         require(
-            hashTransaction(msg.sender, 1, nonce, 1) == hash,
+            hashTransaction(msg.sender, 1, nonce, 2, nftIds) == hash,
             "Hash failed"
         );
         _usedNonces[nonce] = true;
         for (uint256 i; i < number; i++) {
-            _mintHandler();
+            _mintHandler(nftIds[i]);
         }
     }
 
@@ -193,7 +205,8 @@ contract MyContract is ERC721Enumerable, Ownable {
         uint256 number,
         string memory nonce,
         bytes32 hash,
-        bytes memory signature
+        bytes memory signature,
+        uint256[] memory nftIds
     ) external payable {
         resetMintPrice();
         // Prevent user mint any NFT before it starts
@@ -208,13 +221,17 @@ contract MyContract is ERC721Enumerable, Ownable {
         // signature related
         require(matchSigner(hash, signature), "Plz mint through website");
         require(!_usedNonces[nonce], "Hash reused");
+        require(nftIds.length > 0, "NFT ID must be provided");
+        for (uint256 j; j < nftIds.length; j++) {
+            require(!_usedNftIds[nftIds[j]], "NFT has been minted");
+        }
         require(
-            hashTransaction(msg.sender, 1, nonce, 3) == hash,
+            hashTransaction(msg.sender, 1, nonce, 3, nftIds) == hash,
             "Hash failed"
         );
         _usedNonces[nonce] = true;
         for (uint256 i; i < number; i++) {
-            _mintHandler();
+            _mintHandler(nftIds[i]);
         }
     }
   
@@ -226,11 +243,12 @@ contract MyContract is ERC721Enumerable, Ownable {
         address sender,
         uint256 amount,
         string memory nonce,
-        uint256 typeId
+        uint256 typeId,
+        uint256[] memory nftIds
     ) public view returns (bytes32) {
     
         bytes32 hash = keccak256(
-            abi.encodePacked(sender, amount, nonce, address(this), typeId)
+            abi.encodePacked(sender, amount, nonce, address(this), typeId, nftIds)
         );
         return hash;
     }
