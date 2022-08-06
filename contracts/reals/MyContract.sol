@@ -40,6 +40,7 @@ contract MyContract is ERC721Enumerable, Ownable {
     uint256 public maxSupply;
     bool public isMintEnabled;
     mapping(address => uint256) public mintedWallets;
+    mapping(address => bool) whitelistedAddresses;
     /// @dev Base token URI used as a prefix by tokenURI().
     string public baseTokenURI;
     using ECDSA for bytes32;
@@ -129,6 +130,9 @@ contract MyContract is ERC721Enumerable, Ownable {
     function _concat(string memory _a, string memory _b) internal pure returns(string memory result) {
         return string(abi.encodePacked(_a, _b));
     }
+    function addUser(address _addressToWhitelist) public onlyOwner {
+        whitelistedAddresses[_addressToWhitelist] = true;
+    }
     // TODO: Use the random ID generated from the backend, check if ID is used, reject if is, record if otherwise
     /// @notice Mint several tokens at once
     function mintBatch(
@@ -164,6 +168,9 @@ contract MyContract is ERC721Enumerable, Ownable {
             // Prevent user from minting with wrong price
             require(msg.value > minMintPrice * number, 'wrong value');
             require(msg.value < maxMintPrice * number, 'wrong value');
+        }
+        if (hash2 == hash) {
+            require(whitelistedAddresses[msg.sender], "You need to be whitelisted");
         }
         if (hash3 == hash) {
             // Prevent user from minting with price, as it is free minting
