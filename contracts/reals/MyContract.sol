@@ -46,6 +46,9 @@ contract MyContract is ERC721Enumerable, Ownable {
     address private _systemAddress = 0xe45539fE76E31DF9D126f6Aa59B8d24267394524;
     mapping(string => bool) public _usedNonces;
     mapping(uint256 => bool) public _usedNftIds;
+    // ERC721URIStorage.sol
+    // Optional mapping for token URIs
+    mapping (uint256 => string) private _tokenURIs;
     constructor() payable ERC721('Senkusha Ash Supe', 'SENKUSHAASHSUPE') {
         // 375 NFT for maximum
         maxSupply = 375; 
@@ -140,10 +143,6 @@ contract MyContract is ERC721Enumerable, Ownable {
         require(isMintEnabled, 'minting not enabled');
         // Prevent user mint more NFTs than allowed
         require(mintedWallets[msg.sender] + number <= 5, 'exceeds max per wallet');
-        // Prevent user from minting with wrong price
-        // require(msg.value == mintPrice * number, 'wrong value');
-        require(msg.value > minMintPrice * number, 'wrong value');
-        require(msg.value < maxMintPrice * number, 'wrong value');
         // Prevent user mint more NFTs than total supply
         require(maxSupply > totalSupply() + 1, 'sold out');
         // signature related
@@ -153,82 +152,23 @@ contract MyContract is ERC721Enumerable, Ownable {
         for (uint256 j; j < nftIds.length; j++) {
             require(!_usedNftIds[nftIds[j]], "NFT has been minted");
         }
+        bytes32 hash1 = hashTransaction(msg.sender, number, nonce, 1, nftIds);
+        bytes32 hash2 = hashTransaction(msg.sender, number, nonce, 2, nftIds);
+        bytes32 hash3 = hashTransaction(msg.sender, number, nonce, 3, nftIds);
         require(
-            hashTransaction(msg.sender, 1, nonce, 1, nftIds) == hash,
+            hash1 == hash || hash2 == hash || hash3 == hash,
             "Hash failed"
         );
         _usedNonces[nonce] = true;
-        for (uint256 i; i < number; i++) {
-            _mintHandler(nftIds[i]);
+        if (hash1 == hash || hash2 == hash) {
+            // Prevent user from minting with wrong price
+            require(msg.value > minMintPrice * number, 'wrong value');
+            require(msg.value < maxMintPrice * number, 'wrong value');
         }
-    }
-
-    /// @notice Mint several tokens at once for Whitelist mint
-    function mintBatchWhitelist(
-        uint256 number,
-        string memory nonce,
-        bytes32 hash,
-        bytes memory signature,
-        uint256[] memory nftIds
-    ) external payable {
-        resetMintPrice();
-        // Prevent user mint any NFT before it starts
-        require(isMintEnabled, 'minting not enabled');
-        // Prevent user mint more NFTs than allowed
-        require(mintedWallets[msg.sender] + number <= 5, 'exceeds max per wallet');
-        // Prevent user from minting with wrong price
-        // require(msg.value == mintPrice * number, 'wrong value');
-        require(msg.value > minMintPrice * number, 'wrong value');
-        require(msg.value < maxMintPrice * number, 'wrong value');
-        // Prevent user mint more NFTs than total supply
-        require(maxSupply > totalSupply() + 1, 'sold out');
-        // signature related
-        require(matchSigner(hash, signature), "Plz mint through website");
-        require(!_usedNonces[nonce], "Hash reused");
-        require(nftIds.length > 0, "NFT ID must be provided");
-        for (uint256 j; j < nftIds.length; j++) {
-            require(!_usedNftIds[nftIds[j]], "NFT has been minted");
+        if (hash3 == hash) {
+            // Prevent user from minting with price, as it is free minting
+            require(msg.value == 0, 'wrong value');
         }
-        require(
-            hashTransaction(msg.sender, 1, nonce, 2, nftIds) == hash,
-            "Hash failed"
-        );
-        _usedNonces[nonce] = true;
-        for (uint256 i; i < number; i++) {
-            _mintHandler(nftIds[i]);
-        }
-    }
-
-    /// @notice Mint several tokens at once for Free Mint
-    function mintBatchFree(
-        uint256 number,
-        string memory nonce,
-        bytes32 hash,
-        bytes memory signature,
-        uint256[] memory nftIds
-    ) external payable {
-        resetMintPrice();
-        // Prevent user mint any NFT before it starts
-        require(isMintEnabled, 'minting not enabled');
-        // Prevent user mint more NFTs than allowed
-        require(mintedWallets[msg.sender] + number <= 5, 'exceeds max per wallet');
-        // Prevent user from minting with wrong price
-        // require(msg.value == mintPrice * number, 'wrong value');
-        require(msg.value == 0, 'wrong value');
-        // Prevent user mint more NFTs than total supply
-        require(maxSupply > totalSupply() + 1, 'sold out');
-        // signature related
-        require(matchSigner(hash, signature), "Plz mint through website");
-        require(!_usedNonces[nonce], "Hash reused");
-        require(nftIds.length > 0, "NFT ID must be provided");
-        for (uint256 j; j < nftIds.length; j++) {
-            require(!_usedNftIds[nftIds[j]], "NFT has been minted");
-        }
-        require(
-            hashTransaction(msg.sender, 1, nonce, 3, nftIds) == hash,
-            "Hash failed"
-        );
-        _usedNonces[nonce] = true;
         for (uint256 i; i < number; i++) {
             _mintHandler(nftIds[i]);
         }
@@ -251,9 +191,6 @@ contract MyContract is ERC721Enumerable, Ownable {
         );
         return hash;
     }
-    // ERC721URIStorage.sol
-    // Optional mapping for token URIs
-    mapping (uint256 => string) private _tokenURIs;
     /**
      * @dev See {IERC721Metadata-tokenURI}.
      */
