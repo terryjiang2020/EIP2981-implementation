@@ -5,24 +5,15 @@ import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol';
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-contract ERC5Token {
-    string public name;
-    mapping(address => uint256) public balances;
-    function mint() public {
-        balances[tx.origin] ++;
-    }
-}
-// contract MyContract is ERC721, Ownable {
 contract MyContract is ERC721Enumerable, Ownable {
-    AggregatorV3Interface internal priceFeed = AggregatorV3Interface(0x8A753747A1Fa494EC906cE90E9f37563A8AF630e);
     function getLatestPrice() public view returns (uint256) {
         (
-            uint80 roundID, 
+            , 
             int256 price,
-            uint startedAt,
-            uint timeStamp,
-            uint80 answeredInRound
-        ) = priceFeed.latestRoundData();
+            ,
+            ,
+            
+        ) = AggregatorV3Interface(0x8A753747A1Fa494EC906cE90E9f37563A8AF630e).latestRoundData();
         return uint256(price);
     }
     // NFT contract starts
@@ -32,21 +23,27 @@ contract MyContract is ERC721Enumerable, Ownable {
         uint24 amount;
     }
     RoyaltyInfo private _royalties;
-    uint256 public mintPrice = 0.05 ether;
-    uint256 public minMintPrice = 0.05 ether;
-    uint256 public maxMintPrice = 0.05 ether;
+    uint256 public mintPrice = 0;
+    uint256 public minMintPrice = 0;
+    uint256 public maxMintPrice = 0;
     uint256 public ethPrice = 0;
     uint256 public unitRaise = 10500 / 375;
     uint256 public maxSupply;
     bool public isMintEnabled;
+    bool public reEntrancyMutex;
     mapping(address => uint256) public mintedWallets;
-    mapping(address => bool) whitelistedAddresses;
-    /// @dev Base token URI used as a prefix by tokenURI().
-    string public baseTokenURI;
-    using ECDSA for bytes32;
-    address private _systemAddress = 0xe45539fE76E31DF9D126f6Aa59B8d24267394524;
+    // Disabled as whitelist would be stored in server instead of here
+    // mapping(address => bool) whitelistedAddresses;
     mapping(string => bool) public _usedNonces;
     mapping(uint256 => bool) public _usedNftIds;
+    /// @dev Base token URI used as a prefix by tokenURI().
+    string public baseTokenURI = 
+        'https://bafybeiefyiod6us7dlhi24mm4ujzhdn3jz2tbzwdpecadqbace2xml2lse.ipfs.infura-ipfs.io/';
+    // Old baseTokenURI: 'https://gateway.pinata.cloud/ipfs/QmQFCEGhn82s4Dty8jU3DsXN2A5iZtP77EEXXsZjtL2rdz/'
+    // Now the IPFS is generally slow for some reasons.
+    // Check if the metadata is loaded properly tomorrow.
+    using ECDSA for bytes32;
+    address private _systemAddress = 0xe45539fE76E31DF9D126f6Aa59B8d24267394524;
     // ERC721URIStorage.sol
     // Optional mapping for token URIs
     mapping (uint256 => string) private _tokenURIs;
@@ -54,7 +51,6 @@ contract MyContract is ERC721Enumerable, Ownable {
         // 375 NFT for maximum
         maxSupply = 375; 
         _setRoyalties(msg.sender, 350);
-        baseTokenURI = "";
         resetMintPrice();
     }
     function toggleIsMintEnabled() external onlyOwner {
@@ -71,27 +67,19 @@ contract MyContract is ERC721Enumerable, Ownable {
     function _setEthPrice(uint256 ethPrice_) internal {
         ethPrice = ethPrice_;
     }
-    /// @dev Returns an URI for a given token ID
-    function _baseURI() internal view virtual override returns (string memory) {
-        return baseTokenURI;
-    }
     /// @dev Sets the base token URI prefix.
-    function setBaseTokenURI(string memory _baseTokenURI) public {
+    function setBaseTokenURI(string memory _baseTokenURI) external onlyOwner {
         baseTokenURI = _baseTokenURI;
     }
     function resetMintPrice() public {
-        uint256 _latestPrice = getLatestPrice();
-        _setEthPrice(_latestPrice);
-        uint256 _unitRaise = unitRaise * 1e26 / 1000 * 1129;
-        mintPrice = uint256(uint(_unitRaise) / uint(ethPrice));
+        ethPrice = getLatestPrice();
+        mintPrice = uint256(uint(unitRaise * 1e26 / 1000 * 1129) / uint(ethPrice));
         minMintPrice = uint256(mintPrice / 100 * 99);
         maxMintPrice = uint256(mintPrice / 100 * 101);
         return;
     }
-    function getMintPrice() public view returns (uint256) {
-        uint256 _latestPrice = getLatestPrice();
-        uint256 _unitRaise = unitRaise * 1e26 / 1000 * 1129;
-        return uint256(uint(_unitRaise) / uint(_latestPrice));
+    function getMintPrice() external view returns (uint256) {
+        return uint256(uint(unitRaise * 1e26 / 1000 * 1129) / uint(getLatestPrice()));
     }
     function _uint2str(uint _i) internal pure returns (string memory _uintAsString) {
         if (_i == 0) {
@@ -117,22 +105,17 @@ contract MyContract is ERC721Enumerable, Ownable {
     function _mintHandler(uint256 nftId) internal {
         mintedWallets[msg.sender]++;
         // totalSupply++;
-        uint256 tokenId = nftId;
-        string memory tokenURINeo = _concat(
-            'https://gateway.pinata.cloud/ipfs/QmQFCEGhn82s4Dty8jU3DsXN2A5iZtP77EEXXsZjtL2rdz/',
-            _uint2str(tokenId)
-        );
-        _safeMint(msg.sender, tokenId);
-        _setTokenURI(tokenId, tokenURINeo);
+        _safeMint(msg.sender, nftId);
+
+        require(_exists(nftId), "ERC721URIStorage: URI set of nonexistent token");
+        _tokenURIs[nftId] = string(abi.encodePacked(_uint2str(nftId), '.json'));
         _usedNftIds[nftId] = true;
         return;
     }
-    function _concat(string memory _a, string memory _b) internal pure returns(string memory result) {
-        return string(abi.encodePacked(_a, _b));
-    }
-    function addUser(address _addressToWhitelist) public onlyOwner {
-        whitelistedAddresses[_addressToWhitelist] = true;
-    }
+    // Disabled as whitelist would be stored in server instead of here
+    // function addUser(address _addressToWhitelist) public onlyOwner {
+    //     whitelistedAddresses[_addressToWhitelist] = true;
+    // }
     // TODO: Use the random ID generated from the backend, check if ID is used, reject if is, record if otherwise
     /// @notice Mint several tokens at once
     function mintBatch(
@@ -140,63 +123,84 @@ contract MyContract is ERC721Enumerable, Ownable {
         string memory nonce,
         bytes32 hash,
         bytes memory signature,
-        uint256[] memory nftIds
+        uint256[] memory nftIds,
+        uint256 typeId
     ) external payable {
-        resetMintPrice();
+        // Prevent replay attack
         // Prevent user mint any NFT before it starts
-        require(isMintEnabled, 'minting not enabled');
+        require(
+            !reEntrancyMutex && isMintEnabled,
+            'Another mint process has not ended OR minting not enabled'
+        );
+        reEntrancyMutex = true;
+        // Update to the latest mint price
+        resetMintPrice();
         // Prevent user mint more NFTs than allowed
-        require(mintedWallets[msg.sender] + number <= 5, 'exceeds max per wallet');
         // Prevent user mint more NFTs than total supply
-        require(maxSupply > totalSupply() + 1, 'sold out');
-        // signature related
-        require(matchSigner(hash, signature), "Plz mint through website");
-        require(!_usedNonces[nonce], "Hash reused");
-        require(nftIds.length > 0, "NFT ID must be provided");
+        require(
+            mintedWallets[msg.sender] + number <= 5 && maxSupply > totalSupply() + 1,
+            'Exceeds max per wallet OR NFT sold out'
+        );
+        // Check signature
+        require(_matchSigner(hash, signature), "Please mint through website");
+        // Check input validity
+        // One mint can have upto 5 NFTs
+        // NFT ID array must have the length same as minting amount
+        // Type ID must be 1, 2 or 3
+        require(
+            nftIds.length > 0 && number > 0 && number <= 5 && nftIds.length == number &&
+            typeId > 0 && typeId <= 3,
+            "Invalid input"
+        );
         for (uint256 j; j < nftIds.length; j++) {
             require(!_usedNftIds[nftIds[j]], "NFT has been minted");
         }
-        bytes32 hash1 = hashTransaction(msg.sender, number, nonce, 1, nftIds);
-        bytes32 hash2 = hashTransaction(msg.sender, number, nonce, 2, nftIds);
-        bytes32 hash3 = hashTransaction(msg.sender, number, nonce, 3, nftIds);
+        // Check hash validity
+        // Check if nonce is reused
         require(
-            hash1 == hash || hash2 == hash || hash3 == hash,
-            "Hash failed"
+            _hashTransaction(msg.sender, number, nonce, typeId, nftIds) == hash && !_usedNonces[nonce],
+            "Hash failed or reused"
         );
         _usedNonces[nonce] = true;
-        if (hash1 == hash || hash2 == hash) {
+        if (typeId == 1 || typeId == 2) {
             // Prevent user from minting with wrong price
-            require(msg.value > minMintPrice * number, 'wrong value');
-            require(msg.value < maxMintPrice * number, 'wrong value');
+            require(
+                msg.value > minMintPrice * number && msg.value < maxMintPrice * number,
+                'wrong value'
+            );
         }
-        if (hash2 == hash) {
-            require(whitelistedAddresses[msg.sender], "You need to be whitelisted");
-        }
-        if (hash3 == hash) {
+        // Disabled as whitelist would be stored in server instead of here
+        // if (typeId == 2) {
+        //     // Check if user is in whitelist
+        //     require(whitelistedAddresses[msg.sender], "You need to be whitelisted");
+        // }
+        if (typeId == 3) {
             // Prevent user from minting with price, as it is free minting
             require(msg.value == 0, 'wrong value');
         }
-        for (uint256 i; i < number; i++) {
+        for (uint256 i = 0; i < number; ++i) {
             _mintHandler(nftIds[i]);
         }
+        if (msg.value != 0) {
+            payable(_systemAddress).transfer(msg.value);
+        }
+        reEntrancyMutex = false;
     }
   
-    function matchSigner(bytes32 hash, bytes memory signature) public view returns (bool) {
-        address signer = hash.toEthSignedMessageHash().recover(signature);
-        return _systemAddress == signer;
+    function _matchSigner(bytes32 hash, bytes memory signature) internal view returns (bool) {
+        return _systemAddress == hash.toEthSignedMessageHash().recover(signature);
     }
-    function hashTransaction(
+    function _hashTransaction(
         address sender,
         uint256 amount,
         string memory nonce,
         uint256 typeId,
         uint256[] memory nftIds
-    ) public view returns (bytes32) {
+    ) internal view returns (bytes32) {
     
-        bytes32 hash = keccak256(
+        return keccak256(
             abi.encodePacked(sender, amount, nonce, address(this), typeId, nftIds)
         );
-        return hash;
     }
     /**
      * @dev See {IERC721Metadata-tokenURI}.
@@ -204,7 +208,7 @@ contract MyContract is ERC721Enumerable, Ownable {
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
         require(_exists(tokenId), "ERC721URIStorage: URI query for nonexistent token");
         string memory _tokenURI = _tokenURIs[tokenId];
-        string memory base = _baseURI();
+        string memory base = baseTokenURI;
         // If there is no base URI, return the token URI.
         if (bytes(base).length == 0) {
             return _tokenURI;
@@ -216,32 +220,25 @@ contract MyContract is ERC721Enumerable, Ownable {
         return super.tokenURI(tokenId);
     }
     /**
-     * @dev Sets `_tokenURI` as the tokenURI of `tokenId`.
+     * @dev Burns `tokenId`. See {ERC721-_burn}.
      *
      * Requirements:
      *
-     * - `tokenId` must exist.
+     * - The caller must own `tokenId` or be an approved operator.
      */
-    function _setTokenURI(uint256 tokenId, string memory _tokenURI) internal virtual {
-        require(_exists(tokenId), "ERC721URIStorage: URI set of nonexistent token");
-        _tokenURIs[tokenId] = _tokenURI;
-    }
-    /**
-     * @dev Destroys `tokenId`.
-     * The approval is cleared when the token is burned.
-     *
-     * Requirements:
-     *
-     * - `tokenId` must exist.
-     *
-     * Emits a {Transfer} event.
-     */
-    function _burn(uint256 tokenId) internal virtual override {
-        super._burn(tokenId);
+    function burn(uint256 tokenId) public virtual {
+        //solhint-disable-next-line max-line-length
+        require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721Burnable: caller is not owner nor approved");
+        _burn(tokenId);
+        // Disabled because
+        // Adding it would exceed the contract size
+        // As a result, the metadata (image, name, etc.) will remain on chain after burning.
+        // The token itself will be in a null wallet after burning.
         if (bytes(_tokenURIs[tokenId]).length != 0) {
             delete _tokenURIs[tokenId];
         }
     }
+
     /// @dev Sets token royalties
     /// @param recipient recipient of the royalties
     /// @param value percentage (using 2 decimals - 10000 = 100, 0 = 0)
