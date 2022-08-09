@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.6;
+pragma solidity ^0.8.0;
 import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
@@ -27,10 +27,10 @@ contract MyContract is ERC721Enumerable, Ownable {
     uint256 public minMintPrice = 0;
     uint256 public maxMintPrice = 0;
     uint256 public ethPrice = 0;
-    uint256 public unitRaise = 10500 / 375;
-    uint256 public maxSupply;
-    bool public isMintEnabled;
-    bool public reEntrancyMutex;
+    uint256 public constant unitRaise = 10500 / 375;
+    uint256 public maxSupply = 375;
+    bool public isMintEnabled = false;
+    bool public reEntrancyMutex = false;
     mapping(address => uint256) public mintedWallets;
     // Disabled as whitelist would be stored in server instead of here
     // mapping(address => bool) whitelistedAddresses;
@@ -38,12 +38,12 @@ contract MyContract is ERC721Enumerable, Ownable {
     mapping(uint256 => bool) public _usedNftIds;
     /// @dev Base token URI used as a prefix by tokenURI().
     string public baseTokenURI = 
-        'https://bafybeiefyiod6us7dlhi24mm4ujzhdn3jz2tbzwdpecadqbace2xml2lse.ipfs.infura-ipfs.io/';
+        'https://ipfs.io/ipfs/QmXLnc5BtTPHfS3ZB3X15WHZZ6XHqtVsCab1CS83gERk3a/';
     // Old baseTokenURI: 'https://gateway.pinata.cloud/ipfs/QmQFCEGhn82s4Dty8jU3DsXN2A5iZtP77EEXXsZjtL2rdz/'
     // Now the IPFS is generally slow for some reasons.
     // Check if the metadata is loaded properly tomorrow.
     using ECDSA for bytes32;
-    address private _systemAddress = 0xe45539fE76E31DF9D126f6Aa59B8d24267394524;
+    address private constant _systemAddress = 0xe45539fE76E31DF9D126f6Aa59B8d24267394524;
     // ERC721URIStorage.sol
     // Optional mapping for token URIs
     mapping (uint256 => string) private _tokenURIs;
@@ -73,13 +73,13 @@ contract MyContract is ERC721Enumerable, Ownable {
     }
     function resetMintPrice() public {
         ethPrice = getLatestPrice();
-        mintPrice = uint256(uint(unitRaise * 1e26 / 1000 * 1129) / uint(ethPrice));
-        minMintPrice = uint256(mintPrice / 100 * 99);
-        maxMintPrice = uint256(mintPrice / 100 * 101);
+        mintPrice = uint256(uint(unitRaise * 1e26 * 1129 / 1000) / uint(ethPrice));
+        minMintPrice = uint256(mintPrice * 99 / 100);
+        maxMintPrice = uint256(mintPrice * 101 / 100);
         return;
     }
     function getMintPrice() external view returns (uint256) {
-        return uint256(uint(unitRaise * 1e26 / 1000 * 1129) / uint(getLatestPrice()));
+        return uint256(uint(unitRaise * 1e26 * 1129 / 1000) / uint(getLatestPrice()));
     }
     function _uint2str(uint _i) internal pure returns (string memory _uintAsString) {
         if (_i == 0) {
@@ -95,7 +95,7 @@ contract MyContract is ERC721Enumerable, Ownable {
         uint k = len;
         while (_i != 0) {
             k = k-1;
-            uint8 temp = (48 + uint8(_i - _i / 10 * 10));
+            uint8 temp = (48 + uint8(_i - _i * 10 / 10));
             bytes1 b1 = bytes1(temp);
             bstr[k] = b1;
             _i /= 10;
@@ -152,7 +152,7 @@ contract MyContract is ERC721Enumerable, Ownable {
             typeId > 0 && typeId <= 3,
             "Invalid input"
         );
-        for (uint256 j; j < nftIds.length; j++) {
+        for (uint256 j = 0; j < nftIds.length; j++) {
             require(!_usedNftIds[nftIds[j]], "NFT has been minted");
         }
         // Check hash validity
@@ -226,7 +226,7 @@ contract MyContract is ERC721Enumerable, Ownable {
      *
      * - The caller must own `tokenId` or be an approved operator.
      */
-    function burn(uint256 tokenId) public virtual {
+    function burn(uint256 tokenId) external virtual {
         //solhint-disable-next-line max-line-length
         require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721Burnable: caller is not owner nor approved");
         _burn(tokenId);
