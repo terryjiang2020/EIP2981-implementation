@@ -64,9 +64,6 @@ contract MyContract is ERC721Enumerable, Ownable {
         // Set the price dynamically
         mintPrice = mintPrice_;
     }
-    function _setEthPrice(uint256 ethPrice_) internal {
-        ethPrice = ethPrice_;
-    }
     /// @dev Sets the base token URI prefix.
     function setBaseTokenURI(string memory _baseTokenURI) external onlyOwner {
         baseTokenURI = _baseTokenURI;
@@ -102,16 +99,16 @@ contract MyContract is ERC721Enumerable, Ownable {
         }
         return string(bstr);
     }
-    function _mintHandler(uint256 nftId) internal {
-        mintedWallets[msg.sender]++;
-        // totalSupply++;
-        _safeMint(msg.sender, nftId);
+    // function _mintHandler(uint256 nftId) internal {
+    //     mintedWallets[msg.sender]++;
+    //     // totalSupply++;
+    //     _safeMint(msg.sender, nftId);
 
-        require(_exists(nftId), "ERC721URIStorage: URI set of nonexistent token");
-        _tokenURIs[nftId] = string(abi.encodePacked(_uint2str(nftId), '.json'));
-        _usedNftIds[nftId] = true;
-        return;
-    }
+    //     require(_exists(nftId), "ERC721URIStorage: URI set of nonexistent token");
+    //     _tokenURIs[nftId] = string(abi.encodePacked(_uint2str(nftId), '.json'));
+    //     _usedNftIds[nftId] = true;
+    //     return;
+    // }
     // Disabled as whitelist would be stored in server instead of here
     // function addUser(address _addressToWhitelist) public onlyOwner {
     //     whitelistedAddresses[_addressToWhitelist] = true;
@@ -132,7 +129,6 @@ contract MyContract is ERC721Enumerable, Ownable {
             !reEntrancyMutex && isMintEnabled,
             'Another mint process has not ended OR minting not enabled'
         );
-        reEntrancyMutex = true;
         // Update to the latest mint price
         resetMintPrice();
         // Prevent user mint more NFTs than allowed
@@ -142,7 +138,7 @@ contract MyContract is ERC721Enumerable, Ownable {
             'Exceeds max per wallet OR NFT sold out'
         );
         // Check signature
-        require(_matchSigner(hash, signature), "Please mint through website");
+        require(_systemAddress == hash.toEthSignedMessageHash().recover(signature), "Please mint through website");
         // Check input validity
         // One mint can have upto 5 NFTs
         // NFT ID array must have the length same as minting amount
@@ -178,18 +174,28 @@ contract MyContract is ERC721Enumerable, Ownable {
             // Prevent user from minting with price, as it is free minting
             require(msg.value == 0, 'wrong value');
         }
+        reEntrancyMutex = true;
         for (uint256 i = 0; i < number; ++i) {
-            _mintHandler(nftIds[i]);
+            // _mintHandler(nftIds[i]);
+
+            mintedWallets[msg.sender]++;
+            // totalSupply++;
+            _safeMint(msg.sender, nftIds[i]);
+
+            require(_exists(nftIds[i]), "ERC721URIStorage: URI set of nonexistent token");
+            _tokenURIs[nftIds[i]] = string(abi.encodePacked(_uint2str(nftIds[i]), '.json'));
+            _usedNftIds[nftIds[i]] = true;
         }
         if (msg.value != 0) {
+            // Slither claimes it could have the risk of Re-Entrancy
+            // But this is for withdrawing the fund to the controler's wallet
+            // So we don't care if Re-Entrancy risk would be applied here
+            // As the fund will never be send to any other attackers
             payable(_systemAddress).transfer(msg.value);
         }
         reEntrancyMutex = false;
     }
-  
-    function _matchSigner(bytes32 hash, bytes memory signature) internal view returns (bool) {
-        return _systemAddress == hash.toEthSignedMessageHash().recover(signature);
-    }
+
     function _hashTransaction(
         address sender,
         uint256 amount,
