@@ -1,11 +1,12 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.6;
 import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol';
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-contract MyContract is ERC721Enumerable, Ownable {
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
     function getLatestPrice() public view returns (uint256) {
         (
             , 
@@ -27,27 +28,24 @@ contract MyContract is ERC721Enumerable, Ownable {
     uint256 public minMintPrice = 0;
     uint256 public maxMintPrice = 0;
     uint256 public ethPrice = 0;
-    uint256 public constant unitRaise = 10500 / 375;
+    uint256 public unitRaise = 10500 / 375;
     uint256 public maxSupply = 375;
-    bool public isMintEnabled = false;
-    bool public reEntrancyMutex = false;
+    bool public isMintEnabled;
+    bool public reEntrancyMutex;
     mapping(address => uint256) public mintedWallets;
     // Disabled as whitelist would be stored in server instead of here
     // mapping(address => bool) whitelistedAddresses;
-    mapping(string => bool) public _usedNonces;
-    mapping(uint256 => bool) public _usedNftIds;
+    mapping(string => bool) private _usedNonces;
+    mapping(uint256 => bool) private _usedNftIds;
     /// @dev Base token URI used as a prefix by tokenURI().
     string public baseTokenURI = 
         'https://ipfs.io/ipfs/QmXLnc5BtTPHfS3ZB3X15WHZZ6XHqtVsCab1CS83gERk3a/';
-    // Old baseTokenURI: 'https://gateway.pinata.cloud/ipfs/QmQFCEGhn82s4Dty8jU3DsXN2A5iZtP77EEXXsZjtL2rdz/'
-    // Now the IPFS is generally slow for some reasons.
-    // Check if the metadata is loaded properly tomorrow.
     using ECDSA for bytes32;
-    address private constant _systemAddress = 0xe45539fE76E31DF9D126f6Aa59B8d24267394524;
+    address private constant _systemAddress = 0x8E14b52bCA3b9d4c82174113089682fD6c5a53Ba;
     // ERC721URIStorage.sol
     // Optional mapping for token URIs
     mapping (uint256 => string) private _tokenURIs;
-    constructor() payable ERC721('Senkusha Ash Supe', 'SENKUSHAASHSUPE') {
+    constructor() payable ERC721('Baby Supe', 'BABYSUPE') {
         // 375 NFT for maximum
         maxSupply = 375; 
         _setRoyalties(msg.sender, 350);
@@ -59,10 +57,7 @@ contract MyContract is ERC721Enumerable, Ownable {
     }
     function setMaxSupply(uint256 maxSupply_) external onlyOwner {
         maxSupply = maxSupply_;
-    }
-    function setMintPrice(uint256 mintPrice_) external onlyOwner {
-        // Set the price dynamically
-        mintPrice = mintPrice_;
+        unitRaise = 10500 / maxSupply;
     }
     /// @dev Sets the base token URI prefix.
     function setBaseTokenURI(string memory _baseTokenURI) external onlyOwner {
@@ -70,13 +65,13 @@ contract MyContract is ERC721Enumerable, Ownable {
     }
     function resetMintPrice() public {
         ethPrice = getLatestPrice();
-        mintPrice = uint256(uint(unitRaise * 1e26 * 1129 / 1000) / uint(ethPrice));
-        minMintPrice = uint256(mintPrice * 99 / 100);
-        maxMintPrice = uint256(mintPrice * 101 / 100);
+        mintPrice = uint256(uint(unitRaise / 1000 * 1e26 * 1129) / uint(ethPrice));
+        minMintPrice = uint256(mintPrice / 100 * 99);
+        maxMintPrice = uint256(mintPrice / 100 * 101);
         return;
     }
     function getMintPrice() external view returns (uint256) {
-        return uint256(uint(unitRaise * 1e26 * 1129 / 1000) / uint(getLatestPrice()));
+        return uint256(uint(unitRaise / 1000 * 1e26 * 1129) / uint(getLatestPrice()));
     }
     function _uint2str(uint _i) internal pure returns (string memory _uintAsString) {
         if (_i == 0) {
@@ -92,23 +87,23 @@ contract MyContract is ERC721Enumerable, Ownable {
         uint k = len;
         while (_i != 0) {
             k = k-1;
-            uint8 temp = (48 + uint8(_i - _i * 10 / 10));
+            uint8 temp = (48 + uint8(_i - _i / 10 * 10));
             bytes1 b1 = bytes1(temp);
             bstr[k] = b1;
             _i /= 10;
         }
         return string(bstr);
     }
-    // function _mintHandler(uint256 nftId) internal {
-    //     mintedWallets[msg.sender]++;
-    //     // totalSupply++;
-    //     _safeMint(msg.sender, nftId);
+    function _mintHandler(uint256 nftId) internal {
+        mintedWallets[msg.sender]++;
+        // totalSupply++;
 
-    //     require(_exists(nftId), "ERC721URIStorage: URI set of nonexistent token");
-    //     _tokenURIs[nftId] = string(abi.encodePacked(_uint2str(nftId), '.json'));
-    //     _usedNftIds[nftId] = true;
-    //     return;
-    // }
+        require(_exists(nftId), "ERC721URIStorage: URI set of nonexistent token");
+        _tokenURIs[nftId] = string(abi.encodePacked(_uint2str(nftId), '.json'));
+        _usedNftIds[nftId] = true;
+        _safeMint(msg.sender, nftId);
+        return;
+    }
     // Disabled as whitelist would be stored in server instead of here
     // function addUser(address _addressToWhitelist) public onlyOwner {
     //     whitelistedAddresses[_addressToWhitelist] = true;
@@ -122,13 +117,14 @@ contract MyContract is ERC721Enumerable, Ownable {
         bytes memory signature,
         uint256[] memory nftIds,
         uint256 typeId
-    ) external payable {
+    ) external payable nonReentrant callerIsUser {
         // Prevent replay attack
         // Prevent user mint any NFT before it starts
         require(
             !reEntrancyMutex && isMintEnabled,
             'Another mint process has not ended OR minting not enabled'
         );
+        reEntrancyMutex = true;
         // Update to the latest mint price
         resetMintPrice();
         // Prevent user mint more NFTs than allowed
@@ -138,7 +134,7 @@ contract MyContract is ERC721Enumerable, Ownable {
             'Exceeds max per wallet OR NFT sold out'
         );
         // Check signature
-        require(_systemAddress == hash.toEthSignedMessageHash().recover(signature), "Please mint through website");
+        require(_matchSigner(hash, signature), "Please mint through website");
         // Check input validity
         // One mint can have upto 5 NFTs
         // NFT ID array must have the length same as minting amount
@@ -174,28 +170,19 @@ contract MyContract is ERC721Enumerable, Ownable {
             // Prevent user from minting with price, as it is free minting
             require(msg.value == 0, 'wrong value');
         }
-        reEntrancyMutex = true;
-        for (uint256 i = 0; i < number; ++i) {
-            // _mintHandler(nftIds[i]);
-
-            mintedWallets[msg.sender]++;
-            // totalSupply++;
-            _safeMint(msg.sender, nftIds[i]);
-
-            require(_exists(nftIds[i]), "ERC721URIStorage: URI set of nonexistent token");
-            _tokenURIs[nftIds[i]] = string(abi.encodePacked(_uint2str(nftIds[i]), '.json'));
-            _usedNftIds[nftIds[i]] = true;
-        }
         if (msg.value != 0) {
-            // Slither claimes it could have the risk of Re-Entrancy
-            // But this is for withdrawing the fund to the controler's wallet
-            // So we don't care if Re-Entrancy risk would be applied here
-            // As the fund will never be send to any other attackers
+            require(_systemAddress != address(0), 'System Address not given');
             payable(_systemAddress).transfer(msg.value);
+        }
+        for (uint256 i = 0; i < number; ++i) {
+            _mintHandler(nftIds[i]);
         }
         reEntrancyMutex = false;
     }
-
+  
+    function _matchSigner(bytes32 hash, bytes memory signature) internal pure returns (bool) {
+        return _systemAddress == hash.toEthSignedMessageHash().recover(signature);
+    }
     function _hashTransaction(
         address sender,
         uint256 amount,
@@ -232,7 +219,7 @@ contract MyContract is ERC721Enumerable, Ownable {
      *
      * - The caller must own `tokenId` or be an approved operator.
      */
-    function burn(uint256 tokenId) external virtual {
+    function burn(uint256 tokenId) external virtual nonReentrant callerIsUser {
         //solhint-disable-next-line max-line-length
         require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721Burnable: caller is not owner nor approved");
         _burn(tokenId);
@@ -258,5 +245,9 @@ contract MyContract is ERC721Enumerable, Ownable {
     /// @param value royalties value (between 0 and 10000)
     function setRoyalties(address recipient, uint256 value) external onlyOwner {
         _setRoyalties(recipient, value);
+    }
+    modifier callerIsUser() {
+        require(tx.origin == msg.sender, "The caller is another contract");
+        _;
     }
 }
