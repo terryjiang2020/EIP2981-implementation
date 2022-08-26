@@ -151,14 +151,14 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         // Check if nonce is reused
         require(
             _hashTransaction(msg.sender, number, nonce, typeId, nftIds) == hash && !_usedNonces[nonce],
-            "Hash failed or reused"
+            "Hash incorrect or reused"
         );
         _usedNonces[nonce] = true;
         if (typeId == 1 || typeId == 2) {
             // Prevent user from minting with wrong price
             require(
                 msg.value > minMintPrice * number && msg.value < maxMintPrice * number,
-                'wrong value'
+                'Wrong value'
             );
         }
         // Disabled as whitelist would be stored in server instead of here
@@ -180,9 +180,13 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         reEntrancyMutex = false;
     }
   
+    // Check if the signer is Senkusha.
+    // If not, the mintng is not going through us.
     function _matchSigner(bytes32 hash, bytes memory signature) internal pure returns (bool) {
         return _systemAddress == hash.toEthSignedMessageHash().recover(signature);
     }
+    // Generate the hash with the given data.
+    // The data won't be matching if user try to modify it before sending request.
     function _hashTransaction(
         address sender,
         uint256 amount,
