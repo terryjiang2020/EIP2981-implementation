@@ -154,6 +154,10 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
             "Hash incorrect or reused"
         );
         _usedNonces[nonce] = true;
+        // typeId
+        // 1: Normal
+        // 2: Whitelist
+        // 3: Purchased (paid by credit card, preordered, is a free mint member, etc.)
         if (typeId == 1 || typeId == 2) {
             // Prevent user from minting with wrong price
             require(
