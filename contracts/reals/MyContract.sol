@@ -117,7 +117,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         bytes memory signature,
         uint256[] memory nftIds,
         uint256 typeId
-    ) external payable nonReentrant callerIsUser {
+    ) external payable {
         // Prevent replay attack
         // Prevent user mint any NFT before it starts
         require(
@@ -151,7 +151,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         // Check if nonce is reused
         require(
             _hashTransaction(msg.sender, number, nonce, typeId, nftIds) == hash && !_usedNonces[nonce],
-            "Hash incorrect or reused"
+            "Hash failed or reused"
         );
         _usedNonces[nonce] = true;
         // typeId
@@ -162,7 +162,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
             // Prevent user from minting with wrong price
             require(
                 msg.value > minMintPrice * number && msg.value < maxMintPrice * number,
-                'Wrong value'
+                'wrong value'
             );
         }
         // Disabled as whitelist would be stored in server instead of here
@@ -184,13 +184,9 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         reEntrancyMutex = false;
     }
   
-    // Check if the signer is Senkusha.
-    // If not, the mintng is not going through us.
     function _matchSigner(bytes32 hash, bytes memory signature) internal pure returns (bool) {
         return _systemAddress == hash.toEthSignedMessageHash().recover(signature);
     }
-    // Generate the hash with the given data.
-    // The data won't be matching if user try to modify it before sending request.
     function _hashTransaction(
         address sender,
         uint256 amount,
@@ -227,7 +223,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
      *
      * - The caller must own `tokenId` or be an approved operator.
      */
-    function burn(uint256 tokenId) external virtual nonReentrant callerIsUser {
+    function burn(uint256 tokenId) external virtual {
         //solhint-disable-next-line max-line-length
         require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721Burnable: caller is not owner nor approved");
         _burn(tokenId);
