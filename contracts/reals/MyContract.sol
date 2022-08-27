@@ -117,7 +117,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         bytes memory signature,
         uint256[] memory nftIds,
         uint256 typeId
-    ) external payable {
+    ) external payable nonReentrant callerIsUser {
         // Prevent replay attack
         // Prevent user mint any NFT before it starts
         require(
@@ -184,9 +184,13 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         reEntrancyMutex = false;
     }
   
+    // Check if the signer is Senkusha.
+    // If not, the mintng is not going through us.
     function _matchSigner(bytes32 hash, bytes memory signature) internal pure returns (bool) {
         return _systemAddress == hash.toEthSignedMessageHash().recover(signature);
     }
+    // Generate the hash with the given data.
+    // The data won't be matching if user try to modify it before sending request.
     function _hashTransaction(
         address sender,
         uint256 amount,
