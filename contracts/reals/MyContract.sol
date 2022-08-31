@@ -63,13 +63,13 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
     }
     function resetMintPrice() public {
         ethPrice = getLatestPrice();
-        mintPrice = uint256(uint(unitRaise / 1000 * 1e26 * 1129) / uint(ethPrice));
-        minMintPrice = uint256(mintPrice / 100 * 99);
-        maxMintPrice = uint256(mintPrice / 100 * 101);
+        mintPrice = uint256(uint(unitRaise * 1e26 * 1129 / 1000) / uint(ethPrice));
+        minMintPrice = uint256(mintPrice * 99 / 100);
+        maxMintPrice = uint256(mintPrice * 101 / 100);
         return;
     }
     function getMintPrice() external view returns (uint256) {
-        return uint256(uint(unitRaise / 1000 * 1e26 * 1129) / uint(getLatestPrice()));
+        return uint256(uint(unitRaise * 1e26 * 1129 / 1000) / uint(getLatestPrice()));
     }
     function _uint2str(uint _i) internal pure returns (string memory _uintAsString) {
         if (_i == 0) {
@@ -85,7 +85,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         uint k = len;
         while (_i != 0) {
             k = k-1;
-            uint8 temp = (48 + uint8(_i - _i / 10 * 10));
+            uint8 temp = (48 + uint8(_i - _i * 10 / 10));
             bytes1 b1 = bytes1(temp);
             bstr[k] = b1;
             _i /= 10;
