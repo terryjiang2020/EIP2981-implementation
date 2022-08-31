@@ -41,13 +41,11 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
     string public baseTokenURI = 
         'https://ipfs.io/ipfs/QmXLnc5BtTPHfS3ZB3X15WHZZ6XHqtVsCab1CS83gERk3a/';
     using ECDSA for bytes32;
-    address private constant _systemAddress = 0x8E14b52bCA3b9d4c82174113089682fD6c5a53Ba;
+    address private constant _signerAddress = 0xe45539fE76E31DF9D126f6Aa59B8d24267394524;
     // ERC721URIStorage.sol
     // Optional mapping for token URIs
     mapping (uint256 => string) private _tokenURIs;
     constructor() payable ERC721('Baby Supe', 'BABYSUPE') {
-        // 375 NFT for maximum
-        maxSupply = 375; 
         _setRoyalties(msg.sender, 350);
         resetMintPrice();
     }
@@ -98,7 +96,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         mintedWallets[msg.sender]++;
         // totalSupply++;
 
-        require(_exists(nftId), "ERC721URIStorage: URI set of nonexistent token");
+        require(!_usedNftIds[nftId], "ERC721URIStorage: URI set of existent token");
         _tokenURIs[nftId] = string(abi.encodePacked(_uint2str(nftId), '.json'));
         _usedNftIds[nftId] = true;
         _safeMint(msg.sender, nftId);
@@ -130,7 +128,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         // Prevent user mint more NFTs than allowed
         // Prevent user mint more NFTs than total supply
         require(
-            mintedWallets[msg.sender] + number <= 5 && maxSupply > totalSupply() + 1,
+            mintedWallets[msg.sender] + number <= 375 && maxSupply > totalSupply() + 1,
             'Exceeds max per wallet OR NFT sold out'
         );
         // Check signature
@@ -175,8 +173,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
             require(msg.value == 0, 'wrong value');
         }
         if (msg.value != 0) {
-            require(_systemAddress != address(0), 'System Address not given');
-            payable(_systemAddress).transfer(msg.value);
+            payable(0x8E14b52bCA3b9d4c82174113089682fD6c5a53Ba).transfer(msg.value);
         }
         for (uint256 i = 0; i < number; ++i) {
             _mintHandler(nftIds[i]);
@@ -187,7 +184,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
     // Check if the signer is Senkusha.
     // If not, the mintng is not going through us.
     function _matchSigner(bytes32 hash, bytes memory signature) internal pure returns (bool) {
-        return _systemAddress == hash.toEthSignedMessageHash().recover(signature);
+        return _signerAddress == hash.toEthSignedMessageHash().recover(signature);
     }
     // Generate the hash with the given data.
     // The data won't be matching if user try to modify it before sending request.
@@ -207,7 +204,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
      * @dev See {IERC721Metadata-tokenURI}.
      */
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
-        require(_exists(tokenId), "ERC721URIStorage: URI query for nonexistent token");
+        require(_usedNftIds[tokenId], "ERC721URIStorage: URI query for nonexistent token");
         string memory _tokenURI = _tokenURIs[tokenId];
         string memory base = baseTokenURI;
         // If there is no base URI, return the token URI.
