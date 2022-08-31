@@ -1,11 +1,12 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.6;
-import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
-import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
-import '@openzeppelin/contracts/access/Ownable.sol';
-import '@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol';
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
     function getLatestPrice() public view returns (uint256) {
         (
@@ -39,13 +40,13 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
     mapping(uint256 => bool) private _usedNftIds;
     /// @dev Base token URI used as a prefix by tokenURI().
     string public baseTokenURI = 
-        'https://ipfs.io/ipfs/QmXLnc5BtTPHfS3ZB3X15WHZZ6XHqtVsCab1CS83gERk3a/';
+        "https://ipfs.eth.aragon.network/ipfs/QmXLnc5BtTPHfS3ZB3X15WHZZ6XHqtVsCab1CS83gERk3a";
     using ECDSA for bytes32;
     address private constant _signerAddress = 0xe45539fE76E31DF9D126f6Aa59B8d24267394524;
     // ERC721URIStorage.sol
     // Optional mapping for token URIs
     mapping (uint256 => string) private _tokenURIs;
-    constructor() payable ERC721('Baby Supe', 'BABYSUPE') {
+    constructor() payable ERC721("Baby Supe", "BABYSUPE") {
         _setRoyalties(msg.sender, 350);
         resetMintPrice();
     }
@@ -71,33 +72,12 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
     function getMintPrice() external view returns (uint256) {
         return uint256(uint(unitRaise * 1e26 * 1129 / 1000) / uint(getLatestPrice()));
     }
-    function _uint2str(uint _i) internal pure returns (string memory _uintAsString) {
-        if (_i == 0) {
-            return "0";
-        }
-        uint j = _i;
-        uint len;
-        while (j != 0) {
-            len++;
-            j /= 10;
-        }
-        bytes memory bstr = new bytes(len);
-        uint k = len;
-        while (_i != 0) {
-            k = k-1;
-            uint8 temp = (48 + uint8(_i - _i * 10 / 10));
-            bytes1 b1 = bytes1(temp);
-            bstr[k] = b1;
-            _i /= 10;
-        }
-        return string(bstr);
-    }
     function _mintHandler(uint256 nftId) internal {
         mintedWallets[msg.sender]++;
         // totalSupply++;
 
         require(!_usedNftIds[nftId], "ERC721URIStorage: URI set of existent token");
-        _tokenURIs[nftId] = string(abi.encodePacked(_uint2str(nftId), '.json'));
+        _tokenURIs[nftId] = string(abi.encodePacked(Strings.toString(nftId), ".json"));
         _usedNftIds[nftId] = true;
         _safeMint(msg.sender, nftId);
         return;
@@ -120,7 +100,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         // Prevent user mint any NFT before it starts
         require(
             !reEntrancyMutex && isMintEnabled,
-            'Another mint process has not ended OR minting not enabled'
+            "Another mint process has not ended OR minting not enabled"
         );
         reEntrancyMutex = true;
         // Update to the latest mint price
@@ -129,7 +109,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         // Prevent user mint more NFTs than total supply
         require(
             mintedWallets[msg.sender] + number <= 375 && maxSupply > totalSupply() + 1,
-            'Exceeds max per wallet OR NFT sold out'
+            "Exceeds max per wallet OR NFT sold out"
         );
         // Check signature
         require(_matchSigner(hash, signature), "Please mint through website");
@@ -160,7 +140,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
             // Prevent user from minting with wrong price
             require(
                 msg.value > minMintPrice * number && msg.value < maxMintPrice * number,
-                'wrong value'
+                "wrong value"
             );
         }
         // Disabled as whitelist would be stored in server instead of here
@@ -170,7 +150,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         // }
         if (typeId == 3) {
             // Prevent user from minting with price, as it is free minting
-            require(msg.value == 0, 'wrong value');
+            require(msg.value == 0, "wrong value");
         }
         if (msg.value != 0) {
             payable(0x8E14b52bCA3b9d4c82174113089682fD6c5a53Ba).transfer(msg.value);
@@ -241,7 +221,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
     /// @param recipient recipient of the royalties
     /// @param value percentage (using 2 decimals - 10000 = 100, 0 = 0)
     function _setRoyalties(address recipient, uint256 value) internal {
-        require(value <= 10000, 'ERC2981Royalties: Too high');
+        require(value <= 10000, "ERC2981Royalties: Too high");
         _royalties = RoyaltyInfo(recipient, uint24(value));
     }
     /// @notice Allows to set the royalties on the contract
