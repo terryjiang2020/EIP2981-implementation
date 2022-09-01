@@ -29,8 +29,9 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
     uint256 public minMintPrice = 0;
     uint256 public maxMintPrice = 0;
     uint256 public ethPrice = 0;
-    uint256 public unitRaise = 10500 / 375;
-    uint256 public maxSupply = 375;
+    uint256 public maxSupply = 275;
+    uint256 public totalRaise = 7700;
+    uint256 public unitRaise = totalRaise / maxSupply;
     bool public isMintEnabled;
     bool public reEntrancyMutex;
     mapping(address => uint256) public mintedWallets;
@@ -40,7 +41,8 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
     mapping(uint256 => bool) private _usedNftIds;
     /// @dev Base token URI used as a prefix by tokenURI().
     string public baseTokenURI = 
-        "https://ipfs.eth.aragon.network/ipfs/QmXLnc5BtTPHfS3ZB3X15WHZZ6XHqtVsCab1CS83gERk3a";
+        // "https://ipfs.2read.net/ipfs/QmaY8uLka87XMsqGp4GK8BDhdRPpTwcCGQC3iAkjGVozpB/";
+        "ipfs://QmdgzUa4o7qqQjdGuSenbX7roToNUjpTKPcbaX2smpe9aM/";
     using ECDSA for bytes32;
     address private constant _signerAddress = 0xe45539fE76E31DF9D126f6Aa59B8d24267394524;
     // ERC721URIStorage.sol
@@ -56,7 +58,11 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
     }
     function setMaxSupply(uint256 maxSupply_) external onlyOwner {
         maxSupply = maxSupply_;
-        unitRaise = 10500 / maxSupply;
+        unitRaise = totalRaise / maxSupply;
+    }
+    function setTotalRaise(uint256 maxSupply_) external onlyOwner {
+        maxSupply = maxSupply_;
+        unitRaise = totalRaise / maxSupply;
     }
     /// @dev Sets the base token URI prefix.
     function setBaseTokenURI(string memory _baseTokenURI) external onlyOwner {
@@ -108,7 +114,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         // Prevent user mint more NFTs than allowed
         // Prevent user mint more NFTs than total supply
         require(
-            mintedWallets[msg.sender] + number <= 375 && maxSupply > totalSupply() + 1,
+            mintedWallets[msg.sender] + number <= 5 && maxSupply > totalSupply() + 1,
             "Exceeds max per wallet OR NFT sold out"
         );
         // Check signature
@@ -175,7 +181,6 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         uint256 typeId,
         uint256[] memory nftIds
     ) internal view returns (bytes32) {
-    
         return keccak256(
             abi.encodePacked(sender, amount, nonce, address(this), typeId, nftIds)
         );
@@ -208,15 +213,10 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         //solhint-disable-next-line max-line-length
         require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721Burnable: caller is not owner nor approved");
         _burn(tokenId);
-        // Disabled because
-        // Adding it would exceed the contract size
-        // As a result, the metadata (image, name, etc.) will remain on chain after burning.
-        // The token itself will be in a null wallet after burning.
         if (bytes(_tokenURIs[tokenId]).length != 0) {
             delete _tokenURIs[tokenId];
         }
     }
-
     /// @dev Sets token royalties
     /// @param recipient recipient of the royalties
     /// @param value percentage (using 2 decimals - 10000 = 100, 0 = 0)
