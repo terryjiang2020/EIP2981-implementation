@@ -1,13 +1,14 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.6;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Royalty.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
+
+contract MyContract is ERC721Royalty, Ownable, ReentrancyGuard {
     function getLatestPrice() public view returns (uint256) {
         (
             , 
@@ -20,16 +21,12 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
     }
     // NFT contract starts
     // https://www.youtube.com/watch?v=8WPzUbJyoNg
-    struct RoyaltyInfo {
-        address recipient;
-        uint24 amount;
-    }
-    RoyaltyInfo private _royalties = RoyaltyInfo(0x8E14b52bCA3b9d4c82174113089682fD6c5a53Ba, 350);
     uint256 public mintPrice = 0;
     uint256 public minMintPrice = 0;
     uint256 public maxMintPrice = 0;
     uint256 public ethPrice = 0;
     uint256 public maxSupply = 275;
+    uint256 public totalSupply = 0;
     uint256 public totalRaise = 7700;
     uint256 public unitRaise = totalRaise / maxSupply;
     bool public isMintEnabled;
@@ -49,7 +46,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
     // Optional mapping for token URIs
     mapping (uint256 => string) private _tokenURIs;
     constructor() payable ERC721("Baby Supe", "BABYSUPE") {
-        // _setRoyalties(msg.sender, 350);
+        _setDefaultRoyalty(0x8E14b52bCA3b9d4c82174113089682fD6c5a53Ba, 350);
         resetMintPrice();
     }
     function toggleIsMintEnabled() external onlyOwner {
@@ -80,7 +77,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
     }
     function _mintHandler(uint256 nftId) internal {
         mintedWallets[msg.sender]++;
-        // totalSupply++;
+        totalSupply++;
 
         require(!_usedNftIds[nftId], "ERC721URIStorage: URI set of existent token");
         _tokenURIs[nftId] = string(abi.encodePacked(Strings.toString(nftId), ".json"));
@@ -114,7 +111,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         // Prevent user mint more NFTs than allowed
         // Prevent user mint more NFTs than total supply
         require(
-            (msg.sender == owner() || mintedWallets[msg.sender] + number <= 5) && maxSupply > totalSupply() + 1,
+            (msg.sender == owner() || mintedWallets[msg.sender] + number <= 5) && maxSupply > totalSupply + 1,
             "Exceeds max per wallet OR NFT sold out"
         );
         // Check signature
@@ -217,19 +214,12 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
             delete _tokenURIs[tokenId];
         }
     }
-    /// @dev Sets token royalties
-    /// @param recipient recipient of the royalties
-    /// @param value percentage (using 2 decimals - 10000 = 100, 0 = 0)
-    function _setRoyalties(address recipient, uint256 value) internal {
-        require(value <= 10000, "ERC2981Royalties: Too high");
-        _royalties = RoyaltyInfo(recipient, uint24(value));
-    }
     /// @notice Allows to set the royalties on the contract
     /// @dev This function in a real contract should be protected with a onlyOwner (or equivalent) modifier
     /// @param recipient the royalties recipient
     /// @param value royalties value (between 0 and 10000)
-    function setRoyalties(address recipient, uint256 value) external onlyOwner {
-        _setRoyalties(recipient, value);
+    function setRoyalties(address recipient, uint96 value) external onlyOwner {
+        _setDefaultRoyalty(recipient, value);
     }
     modifier callerIsUser() {
         require(tx.origin == msg.sender, "The caller is another contract");
