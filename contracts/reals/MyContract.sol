@@ -24,7 +24,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         address recipient;
         uint24 amount;
     }
-    RoyaltyInfo private _royalties;
+    RoyaltyInfo private _royalties = RoyaltyInfo(0x8E14b52bCA3b9d4c82174113089682fD6c5a53Ba, 350);
     uint256 public mintPrice = 0;
     uint256 public minMintPrice = 0;
     uint256 public maxMintPrice = 0;
@@ -49,7 +49,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
     // Optional mapping for token URIs
     mapping (uint256 => string) private _tokenURIs;
     constructor() payable ERC721("Baby Supe", "BABYSUPE") {
-        _setRoyalties(msg.sender, 350);
+        // _setRoyalties(msg.sender, 350);
         resetMintPrice();
     }
     function toggleIsMintEnabled() external onlyOwner {
@@ -114,7 +114,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         // Prevent user mint more NFTs than allowed
         // Prevent user mint more NFTs than total supply
         require(
-            mintedWallets[msg.sender] + number <= 5 && maxSupply > totalSupply() + 1,
+            (msg.sender == owner() || mintedWallets[msg.sender] + number <= 5) && maxSupply > totalSupply() + 1,
             "Exceeds max per wallet OR NFT sold out"
         );
         // Check signature
@@ -124,9 +124,8 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         // NFT ID array must have the length same as minting amount
         // Type ID must be 1, 2 or 3
         require(
-            nftIds.length > 0 && number > 0 && number <= 5 && nftIds.length == number &&
-            typeId > 0 && typeId <= 3,
-            "Invalid input"
+            nftIds.length > 0 && number > 0 &&
+            nftIds.length == number && typeId > 0 && typeId <= 3, "Invalid input"
         );
         for (uint256 j = 0; j < nftIds.length; j++) {
             require(!_usedNftIds[nftIds[j]], "NFT has been minted");
@@ -134,7 +133,8 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         // Check hash validity
         // Check if nonce is reused
         require(
-            _hashTransaction(msg.sender, number, nonce, typeId, nftIds) == hash && !_usedNonces[nonce],
+            _hashTransaction(msg.sender, number, nonce, typeId, nftIds) == hash &&
+            !_usedNonces[nonce],
             "Hash failed or reused"
         );
         _usedNonces[nonce] = true;
