@@ -114,7 +114,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         // Prevent user mint more NFTs than allowed
         // Prevent user mint more NFTs than total supply
         require(
-            (msg.sender == owner() || mintedWallets[msg.sender] + number <= 5) && maxSupply > totalSupply() + 1,
+            (msg.sender == owner() || mintedWallets[msg.sender] + number <= 5) && maxSupply > totalSupply(),
             "Exceeds max per wallet OR NFT sold out"
         );
         // Check signature
@@ -124,9 +124,12 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         // NFT ID array must have the length same as minting amount
         // Type ID must be 1, 2 or 3
         require(
-            nftIds.length > 0 && number > 0 && nftIds.length == number &&
-            typeId > 0 && typeId <= 3,
+            nftIds.length > 0 && number > 0 && nftIds.length == number,
             "Invalid input"
+        );
+        require(
+            typeId > 0 && typeId <= 3,
+            "Invalid type"
         );
         for (uint256 j = 0; j < nftIds.length; j++) {
             require(!_usedNftIds[nftIds[j]], "NFT has been minted");
