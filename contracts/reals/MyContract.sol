@@ -49,8 +49,8 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
     // Optional mapping for token URIs
     mapping (uint256 => string) private _tokenURIs;
     constructor() payable ERC721("Baby Supe", "BABYSUPE") {
-        _setRoyalties(msg.sender, 350);
-        resetMintPrice();
+        // _setRoyalties(msg.sender, 350);
+        // resetMintPrice();
     }
     function toggleIsMintEnabled() external onlyOwner {
         isMintEnabled = !isMintEnabled;
