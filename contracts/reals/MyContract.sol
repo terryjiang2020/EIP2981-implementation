@@ -14,8 +14,10 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
             int256 price,
             ,
             ,
-            
-        ) = AggregatorV3Interface(0x8A753747A1Fa494EC906cE90E9f37563A8AF630e).latestRoundData();
+        // Testnet
+        ) = AggregatorV3Interface(0xD4a33860578De61DBAbDc8BFdb98FD742fA7028e).latestRoundData();
+        // Mainnet
+        // ) = AggregatorV3Interface(0x8A753747A1Fa494EC906cE90E9f37563A8AF630e).latestRoundData();
         return uint256(price);
     }
     // NFT contract starts
