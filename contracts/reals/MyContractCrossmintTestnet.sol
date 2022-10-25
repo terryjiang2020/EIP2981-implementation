@@ -7,21 +7,20 @@ import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
+contract SmartContractTemplate is ERC721Enumerable, Ownable, ReentrancyGuard {
     function getLatestPrice() public view returns (uint256) {
         (
             , 
             int256 price,
             ,
             ,
-        // Testnet
+        // Testnet Goeril
         ) = AggregatorV3Interface(0xD4a33860578De61DBAbDc8BFdb98FD742fA7028e).latestRoundData();
-        // Mainnet
+        // Mainnet Ethereum
         // ) = AggregatorV3Interface(0x8A753747A1Fa494EC906cE90E9f37563A8AF630e).latestRoundData();
         return uint256(price);
     }
     // NFT contract starts
-    // https://www.youtube.com/watch?v=8WPzUbJyoNg
     struct RoyaltyInfo {
         address recipient;
         uint24 amount;
@@ -43,7 +42,6 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
     mapping(uint256 => bool) private _usedNftIds;
     /// @dev Base token URI used as a prefix by tokenURI().
     string public baseTokenURI = 
-        // "https://ipfs.2read.net/ipfs/QmaY8uLka87XMsqGp4GK8BDhdRPpTwcCGQC3iAkjGVozpB/";
         "ipfs://QmdgzUa4o7qqQjdGuSenbX7roToNUjpTKPcbaX2smpe9aM/";
     using ECDSA for bytes32;
     address private constant _signerAddress = 0xe45539fE76E31DF9D126f6Aa59B8d24267394524;
@@ -51,6 +49,7 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
     // Optional mapping for token URIs
     mapping (uint256 => string) private _tokenURIs;
     constructor() payable ERC721("Baby Supe", "BABYSUPE") {
+        // HAVE TO MANUALLY SET ROYALTY AFTER DEPLOYMENT
         // _setRoyalties(msg.sender, 350);
         // resetMintPrice();
     }
@@ -204,11 +203,11 @@ contract MyContract is ERC721Enumerable, Ownable, ReentrancyGuard {
         return super.tokenURI(tokenId);
     }
     /**
-     * @dev Burns `tokenId`. See {ERC721-_burn}.
+     * @dev Burns 'tokenId'. See {ERC721-_burn}.
      *
      * Requirements:
      *
-     * - The caller must own `tokenId` or be an approved operator.
+     * - The caller must own 'tokenId' or be an approved operator.
      */
     function burn(uint256 tokenId) external virtual {
         //solhint-disable-next-line max-line-length
